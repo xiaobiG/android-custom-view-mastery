@@ -4,3 +4,23 @@ _book/
 *.log
 .idea/
 .vscode/
+
+# Local environment and machine-specific Android paths
+.env
+.env.*
+!.env.example
+local.properties
+secrets.properties
+keystore.properties
+
+# Signing keys and certificates
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+*.key
+
+# Service configuration files can contain project identifiers or API keys
+google-services.json
+GoogleService-Info.plist
