@@ -1,0 +1,18 @@
+{
+  "name": "advanced-android-custom-view-book",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Android 自定义控件进阶：从 View 机制到 Compose 互操作",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "serve": "honkit serve",
+    "build": "honkit build . _book",
+    "check": "python scripts/validate_book.py",
+    "audit": "npm audit --audit-level=critical"
+  },
+  "devDependencies": {
+    "honkit": "^6.2.2"
+  }
+}
