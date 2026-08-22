@@ -20,7 +20,7 @@ npm run check
 npm run build
 ```
 
-生成结果位于 `_book/`。Windows 下也可直接运行 `build.cmd`；交互阅读请运行 `serve.cmd`，再打开终端显示的 `http://localhost:4000/`。不要直接双击 `_book/index.html`：HonKit 的页面导航与搜索依赖 HTTP 环境，在 `file://` 或部分本地文件预览容器中链接可能无法跳转。依赖审计与受信任输入边界见 [BUILDING.md](BUILDING.md)，完整验收证据见 [QA_REPORT.md](QA_REPORT.md)。
+生成结果位于 `_book/`。Windows 下推荐直接运行 `read.cmd`，它会在需要时自动构建、启动稳定的静态服务器并打开浏览器；也可以执行 `npm run read`。编辑书稿并需要 LiveReload 时再使用 `serve.cmd`。不要直接双击 `_book/index.html`：HonKit 的页面导航与搜索依赖 HTTP 环境，在 `file://` 或部分本地文件预览容器中链接可能无法跳转。依赖审计与受信任输入边界见 [BUILDING.md](BUILDING.md)，完整验收证据见 [QA_REPORT.md](QA_REPORT.md)。
 
 > 示例以 Kotlin、AndroidX 和现代 Android 工程实践为准。涉及 API 级别差异时，正文会明确标注。
 

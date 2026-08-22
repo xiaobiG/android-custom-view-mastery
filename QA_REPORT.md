@@ -3,7 +3,7 @@
 ## 书稿规模
 
 - `SUMMARY.md` 页面：58
-- 非空白字符：379,811
+- 非空白字符：379,837
 - 正文行数：15,771
 - Markdown 代码围栏标记：748（约 374 个代码/图块）
 - ASCII/text 图块：148，未发现超过 100 列的图
@@ -23,7 +23,7 @@ git diff --check
 
 - Critical 级 npm 审计门槛通过。
 - 章节存在性、内部链接、最小章节长度、全书体量、标题和代码围栏检查通过：0 errors，0 warnings。
-- HonKit 6.2.2 构建成功：58 pages、17 assets。
+- HonKit 6.2.2 构建成功：58 pages、19 assets。
 - `_book/` 中 58 个导航页面全部有对应的非空 HTML 文件。
 - `assets/cover.png`、自定义 CSS 与 `search_index.json` 均已生成。
 - Git 空白错误检查通过。

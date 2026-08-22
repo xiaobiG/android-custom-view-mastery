@@ -8,6 +8,7 @@
   },
   "scripts": {
     "serve": "honkit serve",
+    "read": "python scripts/read_book.py",
     "build": "honkit build . _book",
     "check": "python scripts/validate_book.py",
     "audit": "npm audit --audit-level=critical"

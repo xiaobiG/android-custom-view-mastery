@@ -16,17 +16,21 @@ npm run build
 
 HonKit 的目录跳转、上一页/下一页和搜索依赖 HTTP 环境。直接双击 `_book/index.html` 会使用 `file://` 协议，可能被浏览器或内嵌预览容器限制，表现为链接点击后不跳转。
 
-Windows 下运行 `serve.cmd`，或者执行：
-
-```bash
-npm run serve
-```
-
-然后打开：
+Windows 下推荐运行：
 
 ```text
-http://localhost:4000/
+read.cmd
 ```
+
+也可以执行：
+
+```bash
+npm run read
+```
+
+该入口会在 `_book` 缺失或源码更新时自动检查并构建，然后用 Python 静态服务器打开 `http://127.0.0.1:4000/`。它适合长时间阅读，不运行 HonKit 的文件监听器。
+
+编辑书稿并需要 LiveReload 时，可使用 `serve.cmd` 或 `npm run serve`。
 
 部署 `_book/` 到任意静态 HTTP 服务器后也可正常导航。`npm run check` 检查目录、内部链接与书稿结构；它不检查外部 URL，外部引用仍需在改动时单独验证。
 
