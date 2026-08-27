@@ -7,13 +7,15 @@
     "node": ">=18"
   },
   "scripts": {
-    "serve": "honkit serve",
+    "dev": "vitepress dev . --host 127.0.0.1",
+    "serve": "vitepress dev . --host 127.0.0.1",
     "read": "python scripts/read_book.py",
-    "build": "honkit build . _book",
+    "build": "vitepress build .",
+    "preview": "vitepress preview . --host 127.0.0.1",
     "check": "python scripts/validate_book.py",
     "audit": "npm audit --audit-level=critical"
   },
   "devDependencies": {
-    "honkit": "^6.2.2"
+    "vitepress": "^1.6.4"
   }
 }

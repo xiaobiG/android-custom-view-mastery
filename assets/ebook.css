@@ -1,7 +1,0 @@
-body { font-family: "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; }
-pre, code { font-family: "JetBrains Mono", "Cascadia Mono", monospace; }
-pre { white-space: pre-wrap; break-inside: avoid; }
-table { width: 100%; border-collapse: collapse; break-inside: avoid; }
-img { max-width: 100%; }
-h1, h2, h3 { break-after: avoid; }
-blockquote { border-left: 3px solid #666; padding-left: 1em; color: #444; }

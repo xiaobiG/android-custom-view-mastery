@@ -1,5 +1,5 @@
 node_modules/
-_book/
+dist/
 __pycache__/
 *.py[cod]
 .DS_Store

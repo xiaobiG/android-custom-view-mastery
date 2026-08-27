@@ -2,27 +2,50 @@
 
 ![《Android 自定义控件进阶》封面](assets/cover.png)
 
-一本面向具备 Kotlin 与 Android 基础的开发者的进阶教材。
+一本面向具备 Kotlin 与 Android 基础的进阶教材。内容覆盖 View 测量、布局、绘制、Canvas、手势、ViewGroup、动画、性能、状态、无障碍、测试以及 Compose 互操作。
 
-本书以传统 View 体系为主线，系统讲解测量、布局、绘制、事件分发、复杂手势、自定义 ViewGroup、动画、性能、状态、无障碍、测试以及 Compose 互操作，并通过可组合的工具类和生产级控件案例将知识串联起来。
+## 阅读本书
 
-## 阅读方式
+Windows 下直接双击：
+
+```text
+read.cmd
+```
+
+或者在项目目录执行：
 
 ```bash
 npm ci
-npm run serve
+npm run read
 ```
 
-构建静态站点：
+该入口会在需要时检查并构建 VitePress 静态站点，然后在浏览器打开：
+
+```text
+http://127.0.0.1:4000/
+```
+
+请通过 HTTP 地址阅读，不要直接双击 `dist/index.html`。
+
+## 本地构建
 
 ```bash
+npm ci
 npm run check
 npm run build
 ```
 
-生成结果位于 `_book/`。Windows 下推荐直接运行 `read.cmd`，它会在需要时自动构建、启动稳定的静态服务器并打开浏览器；也可以执行 `npm run read`。编辑书稿并需要 LiveReload 时再使用 `serve.cmd`。不要直接双击 `_book/index.html`：HonKit 的页面导航与搜索依赖 HTTP 环境，在 `file://` 或部分本地文件预览容器中链接可能无法跳转。依赖审计与受信任输入边界见 [BUILDING.md](BUILDING.md)，完整验收证据见 [QA_REPORT.md](QA_REPORT.md)。
+构建产物位于 `dist/`。
 
-> 示例以 Kotlin、AndroidX 和现代 Android 工程实践为准。涉及 API 级别差异时，正文会明确标注。
+编辑书稿并需要热更新时：
+
+```bash
+npm run dev -- --port 4000
+```
+
+VitePress 主题刻意保持极简黑白文档风格：目录、搜索、章节大纲、上一页/下一页和 Markdown 代码高亮，除此之外不添加复杂页面元素。
+
+详细的阅读、部署和依赖安全边界见 [BUILDING.md](BUILDING.md)。最终验收记录见 [QA_REPORT.md](QA_REPORT.md)。
 
 ## 适合读者
 

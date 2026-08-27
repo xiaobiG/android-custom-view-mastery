@@ -3,8 +3,7 @@ setlocal
 cd /d "%~dp0"
 call npm ci || exit /b 1
 echo.
-echo Open this address after the server is ready:
-echo http://localhost:4000/
-echo Do not open _book\index.html directly; file:// can block HonKit navigation.
+echo VitePress development server:
+echo http://127.0.0.1:4000/
 echo.
-call npm run serve
+call npm run serve -- --port 4000

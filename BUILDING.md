@@ -1,48 +1,69 @@
-# 构建与依赖说明
+# 构建与阅读说明
 
-## 本地构建
+## 依赖
 
-需要 Node.js 18 或更高版本。仓库包含 `package-lock.json`，请使用 `npm ci` 进行可复现安装：
+- Node.js 18 或更高版本（CI 使用 Node.js 22）
+- Python 3.11 或兼容版本（仅一键静态阅读服务使用）
+
+安装锁定依赖：
 
 ```bash
 npm ci
+```
+
+## 质量检查与静态构建
+
+```bash
 npm run check
 npm run build
 ```
 
-生成的静态站点位于 `_book/`。
+VitePress 将静态站点输出到：
 
-## 本地阅读与链接跳转
+```text
+dist/
+```
 
-HonKit 的目录跳转、上一页/下一页和搜索依赖 HTTP 环境。直接双击 `_book/index.html` 会使用 `file://` 协议，可能被浏览器或内嵌预览容器限制，表现为链接点击后不跳转。
+## 稳定本地阅读
 
-Windows 下推荐运行：
+Windows 下运行：
 
 ```text
 read.cmd
 ```
 
-也可以执行：
+或执行：
 
 ```bash
 npm run read
 ```
 
-该入口会在 `_book` 缺失或源码更新时自动检查并构建，然后用 Python 静态服务器打开 `http://127.0.0.1:4000/`。它适合长时间阅读，不运行 HonKit 的文件监听器。
+脚本会在 `dist/` 缺失或书稿较新时自动运行检查和构建，然后只监听本机：
 
-编辑书稿并需要 LiveReload 时，可使用 `serve.cmd` 或 `npm run serve`。
+```text
+http://127.0.0.1:4000/
+```
 
-部署 `_book/` 到任意静态 HTTP 服务器后也可正常导航。`npm run check` 检查目录、内部链接与书稿结构；它不检查外部 URL，外部引用仍需在改动时单独验证。
+这是一种纯静态 HTTP 阅读方式，适合长时间浏览。按 `Ctrl+C` 停止服务。
 
-## HonKit 依赖审计说明
+> 不要直接打开 `dist/index.html`。VitePress 的路由和本地搜索应通过 HTTP 地址使用。
 
-截至本项目锁定的 HonKit 6.2.2，其传递依赖 `immutable` 旧版本存在拒绝服务类安全公告，且 npm 当前没有兼容的自动修复。直接用 npm `overrides` 升级到 `immutable` 4.3.9 会破坏 HonKit 所依赖的旧 Record/Seq API，并导致构建时报 `plugins.valueSeq is not a function`。
+## 编辑预览
 
-因此本项目遵循以下边界：
+编辑内容时使用 VitePress 开发服务器：
 
-1. HonKit 仅作为开发依赖，在本地或受控 CI 中处理本仓库审查过的 Markdown。
-2. 不使用此构建流程处理第三方上传或不受信任的书稿。
-3. `_book/` 是纯静态产物，部署时不携带 Node.js 或 HonKit 运行时。
-4. 上游提供兼容修复后，应升级 HonKit、重新执行 `npm audit` 和完整构建。
+```bash
+npm run dev -- --port 4000
+```
 
-这是一项已知且显式接受的构建期风险，不代表生成的静态页面包含同一运行时漏洞。
+Windows 下可运行 `serve.cmd`。开发服务器固定监听 `127.0.0.1`，不暴露到局域网。
+
+## 依赖安全边界
+
+```bash
+npm run audit
+```
+
+该命令以 Critical 为阻断阈值。VitePress/Vite 及其开发服务器的已知审计项应随上游修复及时升级；本项目的开发服务器只绑定 localhost，部署产物 `dist/` 是不含 Node.js 运行时的纯静态文件。不要使用本地开发服务器处理不受信任的项目内容。
+
+CI 以固定提交 SHA 引用 GitHub Actions，并执行：依赖安装、审计、书稿检查、VitePress 构建和静态产物上传。

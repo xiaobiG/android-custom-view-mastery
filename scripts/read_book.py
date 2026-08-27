@@ -11,14 +11,14 @@ import webbrowser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "_book"
+OUTPUT = ROOT / "dist"
 INDEX = OUTPUT / "index.html"
 
 
 def newest_source_mtime() -> float:
     files: list[Path] = list(ROOT.glob("*.md"))
     roots = [
-        ROOT / "book.json",
+        ROOT / ".vitepress",
         ROOT / "chapters",
         ROOT / "examples",
         ROOT / "appendices",
@@ -47,7 +47,7 @@ def ensure_book() -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build and read the HonKit book")
+    parser = argparse.ArgumentParser(description="Build and read the VitePress book")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=4000)
     parser.add_argument("--no-browser", action="store_true")
@@ -66,7 +66,7 @@ def main() -> int:
         return 1
 
     url = f"http://{args.host}:{args.port}/"
-    print(f"GitBook 已就绪：{url}", flush=True)
+    print(f"VitePress 已就绪：{url}", flush=True)
     print("按 Ctrl+C 停止服务。", flush=True)
 
     if not args.no_browser:
