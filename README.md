@@ -45,17 +45,7 @@ npm run dev -- --port 4000
 
 VitePress 主题刻意保持极简黑白文档风格：目录、搜索、章节大纲、上一页/下一页和 Markdown 代码高亮，除此之外不添加复杂页面元素。
 
-## GitHub Pages
-
-仓库的 Pages 部署工作流会在 `main` 推送后构建并发布静态站点。部署成功后访问：
-
-```text
-https://xiaobiG.github.io/android-custom-view-mastery/
-```
-
-> GitHub Pages 站点通常可公开访问；仓库保持私有，但请不要将私有内容写入书稿后再推送。
-
-详细的阅读、部署和依赖安全边界见 [BUILDING.md](BUILDING.md)。最终验收记录见 [QA_REPORT.md](QA_REPORT.md)。
+详细的阅读、构建和依赖安全边界见 [BUILDING.md](BUILDING.md)。最终验收记录见 [QA_REPORT.md](QA_REPORT.md)。
 
 ## 适合读者
 

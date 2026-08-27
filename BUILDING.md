@@ -66,20 +66,4 @@ npm run audit
 
 该命令以 Critical 为阻断阈值。VitePress/Vite 及其开发服务器的已知审计项应随上游修复及时升级；本项目的开发服务器只绑定 localhost，部署产物 `dist/` 是不含 Node.js 运行时的纯静态文件。不要使用本地开发服务器处理不受信任的项目内容。
 
-CI 以固定提交 SHA 引用 GitHub Actions，并执行：依赖安装、审计、书稿检查、VitePress 构建和静态产物上传。
-
-## GitHub Pages
-
-`.github/workflows/deploy-pages.yml` 仅在 `main` 的 push 或手动触发时运行。GitHub Actions 环境会自动把 VitePress `base` 设置为：
-
-```text
-/android-custom-view-mastery/
-```
-
-部署成功后的公开地址为：
-
-```text
-https://xiaobiG.github.io/android-custom-view-mastery/
-```
-
-本地构建不会设置该 base，仍以 `http://127.0.0.1:4000/` 为根路径阅读。仓库保持私有，但 GitHub Pages 站点可能公开访问；推送前仍应执行隐私扫描。
+CI 以固定提交 SHA 引用 GitHub Actions，并执行：依赖安装、审计、书稿检查、VitePress 构建和静态产物上传。该 artifact 仅供具有仓库访问权限的成员下载；公开 Pages 未启用。
