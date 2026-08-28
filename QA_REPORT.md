@@ -3,9 +3,9 @@
 ## 书稿规模
 
 - `SUMMARY.md` 导航页面：58
-- 非空白字符：379,818
-- 正文行数：15,794
-- Markdown 代码围栏标记：754（约 377 个代码或图示块）
+- 非空白字符：379,979
+- 正文行数：15,804
+- Markdown 代码围栏标记：756（约 378 个代码或图示块）
 - ASCII/text 图块：148，未发现超过 100 列的图
 - 外部链接出现次数：335；唯一 URL：166
 - 主要来源域名：`developer.android.com`、`cs.android.com`、`perfetto.dev`
@@ -47,6 +47,16 @@ git diff --check
 - 编辑热更新：`npm run dev -- --port 4000`
 
 阅读入口会在书稿较新或 `dist/` 缺失时自动检查并构建，随后用 Python 静态服务器提供内容。不要直接打开 `dist/index.html`。
+
+## GitHub Pages
+
+- 公开地址：[https://xiaobig.github.io/android-custom-view-mastery/](https://xiaobig.github.io/android-custom-view-mastery/)
+- 构建方式：GitHub Actions workflow
+- HTTPS：强制启用
+- Pages 构建与部署工作流：`33186412506`，build 与 deploy 均成功
+- 已直接请求公开首页、章节页和封面资源，全部返回 HTTP 200
+
+> GitHub Pages 会公开 `dist/` 的全部内容。公开前已扫描所有可达 Git 历史、当前工作树和封面元数据，未发现密钥、令牌、个人邮箱、用户路径、手机号或图片隐私元数据。
 
 ## 人工/代理交叉审查
 
