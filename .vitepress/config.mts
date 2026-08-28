@@ -39,6 +39,7 @@ export default defineConfig({
   lang: 'zh-CN',
   title: 'Android 自定义控件进阶',
   description: '从 View 原理、Canvas、手势到性能、无障碍与 Compose 互操作',
+  base: process.env.GITHUB_ACTIONS === 'true' ? '/android-custom-view-mastery/' : '/',
   appearance: false,
   cleanUrls: true,
   outDir: 'dist',
