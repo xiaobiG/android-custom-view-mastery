@@ -359,6 +359,9 @@ class SignaturePadView @JvmOverloads constructor(
         backgroundColor: Int = Color.TRANSPARENT
     ): Boolean {
         require(scale.isFinite() && scale > 0f && scale <= 4f) { "scale must be in (0,4]" }
+        check(width > 0 && height > 0) {
+            "view is not laid out yet: width=$width, height=$height"
+        }
         val bitmap = Bitmap.createBitmap(
             (width * scale).toInt().coerceAtLeast(1),
             (height * scale).toInt().coerceAtLeast(1),
@@ -481,7 +484,7 @@ class SignaturePadView @JvmOverloads constructor(
 </resources>
 ```
 
-> **注意**：`Bitmap.createBitmap()` 可能因超大倍率造成内存压力。上限之外还应依据 `width * height * 4 * scale²` 做预算，导出放到工作线程时必须先复制不可变笔画快照，不能跨线程读取正在变更的 View 状态。
+> **注意**：`Bitmap.createBitmap()` 可能因超大倍率造成内存压力。上限之外还应依据 `width * height * 4 * scale²` 做预算，导出放到工作线程时必须先复制不可变笔画快照，不能跨线程读取正在变更的 View 状态。此外，`exportPng()` 在控件尚未布局（`width`/`height` 为 0）时会导出 1×1 空图，示例在导出前加了尺寸校验，未布局时抛出 `IllegalStateException` 而不是静默产出无效位图。
 
 ## XML 与 Compose 使用
 

@@ -15,6 +15,7 @@
 * [Canvas、Paint 与绘图状态](chapters/02-canvas/canvas-paint.md)
 * [Path 与贝塞尔曲线](chapters/02-canvas/path-bezier.md)
 * [Matrix 与坐标系统](chapters/02-canvas/matrix-coordinate.md)
+* [Camera 三维变换](chapters/02-canvas/camera-3d.md)
 * [Shader、混合与离屏图层](chapters/02-canvas/shader-blend.md)
 * [文字测量与排版](chapters/02-canvas/text-layout.md)
 * [Bitmap、Drawable 与资源管理](chapters/02-canvas/bitmap-drawable.md)
@@ -23,6 +24,7 @@
 * [触摸事件分发机制](chapters/03-input/event-dispatch.md)
 * [滑动冲突与状态机](chapters/03-input/gesture-conflict.md)
 * [多点触控与缩放旋转](chapters/03-input/multi-touch.md)
+* [标准手势识别器](chapters/03-input/gesture-detectors.md)
 * [速度、惯性与边缘效果](chapters/03-input/fling-scroll.md)
 * [嵌套滚动协议](chapters/03-input/nested-scrolling.md)
 * [键盘、鼠标与触控笔](chapters/03-input/multi-input.md)
@@ -44,6 +46,7 @@
 * [减少分配、缓存与局部更新](chapters/06-performance/allocation-cache.md)
 * [硬件加速、图层与过度绘制](chapters/06-performance/hardware-overdraw.md)
 * [Perfetto、HWUI 与卡顿定位](chapters/06-performance/profiling.md)
+* [Baseline Profile 与冷启动优化](chapters/06-performance/baseline-profile.md)
 
 ## 第七篇 状态与样式
 * [自定义属性与主题](chapters/07-state-style/attributes-theme.md)
@@ -67,6 +70,7 @@
 * [生命周期、复用与资源释放](chapters/10-compose/lifecycle-reuse.md)
 * [输入、嵌套滚动与测试互操作](chapters/10-compose/input-testing.md)
 * [迁移决策与边界](chapters/10-compose/migration.md)
+* [ComposeView 反向互操作](chapters/10-compose/compose-in-view.md)
 
 ## 第十一篇 综合实战
 * [圆形进度控件](examples/circular-progress.md)

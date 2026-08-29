@@ -55,8 +55,11 @@ Activity/Window
     ↓ dispatchTouchEvent
 ViewGroup.dispatchTouchEvent
     ├─ onInterceptTouchEvent == false → child.dispatchTouchEvent
-    └─ onInterceptTouchEvent == true  → parent.onTouchEvent
+    └─ onInterceptTouchEvent == true  → 该 ViewGroup 自身消费：
+                                       后续事件交给自己的 onTouchEvent
 ```
+
+`onInterceptTouchEvent` 返回 `true` 时，事件由**该 ViewGroup 自己**消费——它的 `onTouchEvent` 在自身调用，而不是“parent”。用“父容器”表述会让人误以为事件向上抛给了更外层的容器。实际上被拦截后原目标子 View 会收到 `CANCEL`，该 ViewGroup 从此接管整段序列，直到 `UP`/`CANCEL`。
 
 | 返回值/动作 | 后果 |
 |---|---|

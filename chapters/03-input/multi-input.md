@@ -126,6 +126,8 @@ override fun onGenericMotionEvent(event: MotionEvent): Boolean {
         val v = event.getAxisValue(MotionEvent.AXIS_VSCROLL)
         val h = event.getAxisValue(MotionEvent.AXIS_HSCROLL)
         if (v != 0f || h != 0f) {
+            // 负号与 AOSP View/ScrollView 的 -vscroll*factor 约定一致：
+            // 滚轮向上滚动为正，内容向滚动方向移动；方向以真机验证为准。
             panBy(
                 dx = -h * horizontalScrollFactor(),
                 dy = -v * verticalScrollFactor()
@@ -138,7 +140,9 @@ override fun onGenericMotionEvent(event: MotionEvent): Boolean {
 ```
 
 滚轮轴值通常只表达刻度，不等于像素；乘系统因子可获得与设备配置一致的距离。触控板可能
-产生更细密的轴值，不要强制取整后再累计，否则小量会全部丢失。
+产生更细密的轴值，不要强制取整后再累计，否则小量会全部丢失。上述 `-v * factor` 的负号
+与 AOSP `View.onGenericMotionEvent` 的 `-vscroll * scrollFactor` 约定一致；若控件使用
+相反的内容坐标语义，需相应调整符号，并以真机验证滚动方向。
 
 ## 悬停、鼠标按钮和上下文操作
 
@@ -345,6 +349,6 @@ class StylusPadView @JvmOverloads constructor(
 ## 延伸阅读
 
 - [Handle keyboard input](https://developer.android.com/develop/ui/views/touch-and-input/keyboard-input)
-- [Handle mouse actions](https://developer.android.com/develop/ui/views/touch-and-input/stylus-input/mouse)
 - [Advanced stylus features](https://developer.android.com/develop/ui/views/touch-and-input/stylus-input/advanced-stylus-features)
+- [Stylus input](https://developer.android.com/develop/ui/views/touch-and-input/stylus-input)
 - [MotionEvent axes](https://developer.android.com/reference/android/view/MotionEvent)

@@ -376,6 +376,26 @@ lineHeight = childHeight
 
 然后在 ViewGroup 构造器中读取全局间距，在 `LayoutParams(context, attrs)` 中读取 `layout_breakLine`。所有 `TypedArray` 都必须在 `finally` 中 `recycle()`。读取构造阶段可直接写 backing field，避免尚未完成初始化时多余 `requestLayout()`。
 
+启用 `app:layout_breakLine` 后，给主类的 `LayoutParams` 补上解析代码（`layout_breakLine` 属性名已由 styleable 声明为 `FlowLayout_Layout`）：
+
+```kotlin
+// 替换主类中只透传父类的那个构造器：
+constructor(context: Context, attrs: AttributeSet?) : super(context, attrs) {
+    if (attrs != null) {
+        val a = context.obtainStyledAttributes(
+            attrs, R.styleable.FlowLayout_Layout
+        )
+        try {
+            breakLine = a.getBoolean(
+                R.styleable.FlowLayout_Layout_layout_breakLine, false
+            )
+        } finally {
+            a.recycle()
+        }
+    }
+}
+```
+
 XML 使用示意：
 
 ```xml

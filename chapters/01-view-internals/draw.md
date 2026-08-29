@@ -158,6 +158,16 @@ class OverlayContainer(context: android.content.Context) :
 
 在硬件加速下，`onDraw()` 更接近记录绘制命令，后续由渲染线程和 GPU 管线处理；它不意味着所有 API 都“在 GPU 上立即画完”。软件层、硬件层与 `setLayerType()` 有各自的兼容性、内存和更新成本。
 
+### setLayerType：三种绘制目标
+
+`setLayerType(type, paint)` 控制 View 绘制到哪里：
+
+- `LAYER_TYPE_NONE`（默认）：直接绘制到父层，无额外缓冲，开销最小。
+- `LAYER_TYPE_SOFTWARE`：内容渲染进软件位图，每次失效都会重建。适合硬件加速不支持的效果（如某些复杂 `saveLayer`/Xfermode 组合）或截图场景；内存与更新成本高，不宜常驻。
+- `LAYER_TYPE_HARDWARE`：内容记录为 GPU 层。用于动画期间提升渲染质量（如对含阴影、圆角的内容做旋转/透明时，避免每帧重绘整棵子树）；代价是显存占用、纹理上传与失效区域重建。
+
+判断是否值得用图层：内容基本静态、动画只做整体变换（alpha/旋转/缩放/平移）时，硬件层通常划算；内容每帧变化或尺寸巨大时，重建图层可能比直接绘制更贵。`ViewPropertyAnimator.withLayer()`（API 16）能在动画期间临时启用硬件层、结束后恢复 `NONE`，是低成本尝试图层的入口。
+
 > **性能提示**：不要为了“更快”常驻开启硬件层。图层适合特定动画或复用场景，内容频繁变化时重建图层可能更贵。先用 Perfetto、GPU 渲染分析和过度绘制工具验证。
 
 高频路径的原则：
@@ -170,7 +180,37 @@ class OverlayContainer(context: android.content.Context) :
 
 > **无障碍提示**：Canvas 上画出的文字和图形不会自动成为语义节点。可操作的绘制区域需要内容描述、点击语义，复杂控件则需要虚拟无障碍节点。
 
-## 六、常见陷阱
+## 六、Outline 与圆形裁剪
+
+硬件加速下，View 的边界形状由 `Outline` 描述，驱动阴影、点击区域和裁剪。相关 API 为 API 21+：
+
+- `setOutlineProvider(provider)`：用 `ViewOutlineProvider` 提供轮廓；
+- `clipToOutline = true`：把 View 内容裁剪到轮廓范围，是硬件裁剪，无需离屏缓冲；
+- 内置形状：`ViewOutlineProvider.BACKGROUND` 跟随 background 的圆角/圆形，`PADDED_BOUNDS`/`BOUNDS` 为矩形；自定义则实现 `getOutline()`。
+
+圆形头像是最常见的用法：
+
+```kotlin
+imageView.outlineProvider = object : ViewOutlineProvider() {
+    override fun getOutline(view: View, outline: Outline) {
+        val size = min(view.width, view.height)
+        val left = (view.width - size) / 2f
+        val top = (view.height - size) / 2f
+        outline.setOval(left, top, left + size, top + size)
+    }
+}
+imageView.clipToOutline = true
+```
+
+要点：
+
+- 阴影来自 `elevation` 且由 outline 驱动，透明区域不会投射阴影；
+- `clipToOutline` 依赖当前 outline 生效，修改轮廓会触发失效，频繁改动不划算；
+- 它和 `canvas.clipPath()` 不是一回事：前者是硬件裁剪路径，后者走绘制命令，成本与兼容性不同。
+
+> **性能提示**：能用 `clipToOutline` 的圆角/圆形裁剪优先用它，避免在 `onDraw()` 里做离屏缓冲或复杂 `clipPath`。
+
+## 七、常见陷阱
 
 1. **覆盖 `draw()` 却不调用 super**：背景、内容、子 View 或前景消失。
 2. **Canvas 变换不恢复**：后续绘制全部偏移、缩放或被裁剪。
@@ -180,7 +220,7 @@ class OverlayContainer(context: android.content.Context) :
 6. **误以为 ViewGroup 一定调用 onDraw**：`willNotDraw` 优化可能跳过它。
 7. **把硬件层当万能优化**：可能增加显存、上传和失效成本。
 
-## 七、实践检查清单
+## 八、实践检查清单
 
 - [ ] 我能说明 background、onDraw、dispatchDraw 和 foreground 的相对职责。
 - [ ] Canvas 的每次临时变换或裁剪都通过 save/restore 限定范围。

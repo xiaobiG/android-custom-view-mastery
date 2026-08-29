@@ -95,6 +95,55 @@ class GaugeScreenshotPreparationTest {
 
 `qualifiers` 示例应按项目 Robolectric 版本验证。涉及真实字体栅格、硬件阴影或 OEM 差异的高风险控件，再补仪器截图。
 
+### Robolectric 原生图形模式
+
+Robolectric 4.10 起提供 `@GraphicsMode(GraphicsMode.Mode.NATIVE)`。默认 LEGACY 模式下，graphics 相关类由桩件或低保真替代实现，像素内容常为空或不可靠；NATIVE 模式加载真实的 Android 原生图形栈（Skia 栅格化），绘制结果更接近真机，可直接从 Bitmap 读取像素做断言。
+
+何时需要 NATIVE：
+
+- 测试断言真实像素：截取 View/Bitmap 后检查颜色、透明度或不透明像素占比。
+- 依赖真实字体栅格、Shader、Path、硬件阴影等 LEGACY 表现不可靠的绘制路径。
+- 与 Roborazzi 等基于 Robolectric 的 JVM 截图库配合做基线比较。
+
+```kotlin
+import org.robolectric.annotation.GraphicsMode
+
+@RunWith(RobolectricTestRunner::class)
+@GraphicsMode(GraphicsMode.Mode.NATIVE)
+@Config(sdk = [33], qualifiers = "w360dp-h640dp-420dpi-notnight")
+class GaugeNativeScreenshotTest {
+
+    @Test fun determinate75_rendersPixels() {
+        val view = GaugeView(ApplicationProvider.getApplicationContext()).apply {
+            progress = 75
+        }
+        val width = 300
+        val height = 120
+        view.measure(
+            View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(height, View.MeasureSpec.EXACTLY),
+        )
+        view.layout(0, 0, width, height)
+
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        view.draw(Canvas(bitmap))
+        // NATIVE 下栅格化真实发生，像素断言才有意义；LEGACY 下可能全部透明。
+        assertTrue("NATIVE 渲染不应全透明", containsOpaquePixel(bitmap))
+    }
+
+    private fun containsOpaquePixel(bitmap: Bitmap): Boolean {
+        for (y in 0 until bitmap.height step 4) {
+            for (x in 0 until bitmap.width step 4) {
+                if (android.graphics.Color.alpha(bitmap.getPixel(x, y)) > 0) return true
+            }
+        }
+        return false
+    }
+}
+```
+
+> **注意**：`@GraphicsMode` 与 NATIVE 模式自 Robolectric 4.10 引入，默认仍为 LEGACY，需显式声明（后续版本如有默认值变化，以官方发布说明为准）。平台支持：4.10–4.11 仅 Linux/macOS（Windows 可走 WSL 2），Windows x86_64 自 4.12 起支持；NATIVE 比 LEGACY 慢，只对确实需要真实栅格化的用例开启。
+
 ## 4. 仪器截图与工件
 
 ```kotlin

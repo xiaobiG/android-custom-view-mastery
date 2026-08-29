@@ -94,6 +94,76 @@ MOVE/UP     已由父容器接管 -----------------------------------> MOVE/UP
 `CANCEL` 与 `UP` 都是终态，但语义不同：`UP` 可以确认点击、提交拖动；`CANCEL` 只能回滚或
 停止。窗口失焦、系统手势接管、父容器拦截等都可能产生取消。
 
+### 拦截一旦发生，整条序列不再重复询问
+
+`ViewGroup.dispatchTouchEvent()` 只有在“`ACTION_DOWN` 或已有触摸目标”时才会调用
+`onInterceptTouchEvent()`。一旦父容器在 `DOWN` 返回 `true`，子 target 收到 `CANCEL` 并从
+链表移除，`mFirstTouchTarget` 置空；后续 `MOVE/UP` 到达时既不满足 `DOWN` 也没有目标，直接
+走父容器自身的 `onTouchEvent()`，不再询问是否拦截。也就是说，“拦截”是一次决策，整条序列生效：
+
+```text
+场景 A：DOWN 就被拦截
+DOWN : onInterceptTouchEvent = true
+       -> 子 target 收到 CANCEL，mFirstTouchTarget 置空
+       -> 父容器 onTouchEvent 消费 DOWN
+MOVE : 不是 DOWN 且 mFirstTouchTarget == null
+       -> 跳过 onInterceptTouchEvent，直接父容器 onTouchEvent
+UP   : 同上，父容器 onTouchEvent 结束序列
+
+场景 B：DOWN 放行，MOVE 才拦截
+DOWN : onInterceptTouchEvent = false -> 记录子 target
+MOVE : onInterceptTouchEvent = true
+       -> 子 target 收到 CANCEL，mFirstTouchTarget 置空
+       -> 父容器 onTouchEvent 消费本次 MOVE
+后续 : 同场景 A，不再询问 onInterceptTouchEvent
+```
+
+最小验证容器：在 `DOWN` 拦截，日志应只有一条 `intercept` 记录，其余事件全部落在
+`onTouchEvent`：
+
+```kotlin
+package com.example.input
+
+import android.content.Context
+import android.util.AttributeSet
+import android.util.Log
+import android.view.MotionEvent
+import android.view.ViewGroup
+
+/** 平台 API：ViewGroup、MotionEvent、Log。 */
+class InterceptOnceGroup @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+) : ViewGroup(context, attrs) {
+
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean {
+        // 拦截后 MOVE/UP 不会再进入本回调
+        Log.d("InterceptOnce", "intercept ${ev.actionName()} 被调用")
+        return ev.actionMasked == MotionEvent.ACTION_DOWN
+    }
+
+    override fun onTouchEvent(ev: MotionEvent): Boolean {
+        Log.d("InterceptOnce", "onTouchEvent ${ev.actionName()} 接管")
+        return true // 消费整条序列
+    }
+
+    // 空容器，仅演示分发；无需布局子 View
+    override fun onLayout(
+        changed: Boolean, l: Int, t: Int, r: Int, b: Int,
+    ) = Unit
+
+    private fun MotionEvent.actionName(): String = when (actionMasked) {
+        MotionEvent.ACTION_DOWN -> "DOWN"
+        MotionEvent.ACTION_MOVE -> "MOVE"
+        MotionEvent.ACTION_UP -> "UP"
+        MotionEvent.ACTION_CANCEL -> "CANCEL"
+        else -> actionMasked.toString()
+    }
+}
+```
+
+下面的 `DragHandleView` 从子 View 一侧处理同一条序列的 DOWN/MOVE/UP/CANCEL：
+
 ```kotlin
 package com.example.input
 
@@ -212,6 +282,24 @@ class DispatchTraceLayout @JvmOverloads constructor(
 沿父链传播，常用于子控件已判定自己正在水平拖动时。但它不是永久锁：新的 `DOWN` 会重置
 相关状态，而且父容器仍能在 `dispatchTouchEvent()` 层做特殊处理。正常控件应遵守该请求，
 子控件也应只在手势意图明确时提出，结束后恢复为 `false`。
+
+机制上，请求落实为 `ViewGroup` 的内部标志 `FLAG_DISALLOW_INTERCEPT`：置位后
+`dispatchTouchEvent()` 中 `disallowIntercept = true`，直接跳过 `onInterceptTouchEvent()`。
+但 `ACTION_DOWN` 进入容器时框架会先执行 `resetTouchState()`，无条件清除
+`FLAG_DISALLOW_INTERCEPT`（AOSP `ViewGroup` 行为）。因此：
+
+- 请求只对**当前一条手势序列**有效，下一次 `DOWN` 到来即失效，必须重新请求；
+- 子 View 应在 `DOWN` 回调里建立请求，而不是只在首次手势时设置一次。
+
+```text
+手势序列 1                      手势序列 2
+DOWN -> 子请求 disallow         DOWN -> resetTouchState() 清除标志
+MOVE -> 父不拦截（标志生效）     子未重新请求 -> 父可正常询问拦截
+UP   -> 序列结束
+```
+
+`DragHandleView` 示例中在 `DOWN` 里调用 `requestDisallowInterceptTouchEvent(false)` 是在
+复位上一次的占用：即使不显式复位，下一条 `DOWN` 也会自动清除该标志。
 
 ## 常见陷阱
 

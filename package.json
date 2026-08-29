@@ -1,6 +1,6 @@
 {
   "name": "advanced-android-custom-view-book",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "private": true,
   "description": "Android 自定义控件进阶：从 View 机制到 Compose 互操作",
   "engines": {
@@ -11,8 +11,7 @@
     "serve": "vitepress dev . --host 127.0.0.1",
     "read": "python scripts/read_book.py",
     "build": "vitepress build .",
-    "preview": "vitepress preview . --host 127.0.0.1",
-    "check": "python scripts/validate_book.py",
+    "check": "python scripts/validate_book.py && python scripts/link_check.py",
     "audit": "npm audit --audit-level=critical"
   },
   "devDependencies": {

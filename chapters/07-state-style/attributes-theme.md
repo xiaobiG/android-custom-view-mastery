@@ -78,6 +78,7 @@ class MeterView @JvmOverloads constructor(
     private var indicatorColor = Color.BLUE
     private var thicknessPx = 0f
     private var showLabel = true
+    private var labelTextAppearance = 0
 
     init {
         context.obtainStyledAttributes(
@@ -101,6 +102,9 @@ class MeterView @JvmOverloads constructor(
                 4f * resources.displayMetrics.density,
             )
             showLabel = a.getBoolean(R.styleable.MeterView_meterShowLabel, true)
+            labelTextAppearance = a.getResourceId(
+                R.styleable.MeterView_meterLabelTextAppearance, 0
+            )
         }
     }
 }
@@ -148,6 +152,8 @@ override fun drawableStateChanged() {
 ```
 
 若要让自定义 Drawable 接收状态，还应覆盖 `verifyDrawable`，在尺寸变化时设置 bounds，并在不再使用时解除 callback。文本样式应优先用 TextAppearance 资源与 `TextPaint`/`TextView` 支持库读取，避免只暴露若干零散字体属性后却无法表达 locale、font family 等语义。
+
+> **用途**：上节声明的 `meterLabelTextAppearance` 正是这条原则的落点——它在构造器里用 `getResourceId()` 读取并保存为资源 ID（`attrs.xml` 中格式为 `reference`，默认 style 赋的是 `?attr/textAppearanceBodyMedium`）。绘制百分比文字时，把该资源应用到 `TextPaint`（通过 `Resources.Theme` 解析 TextAppearance 中的字体、大小与颜色，再叠加 locale/font family 语义），组件即可跟随应用主题的文字外观，而不是把字体参数写死成普通整数。
 
 ## 5. 运行时主题覆盖
 

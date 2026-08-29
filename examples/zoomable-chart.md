@@ -68,7 +68,6 @@ import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.PointF
 import android.graphics.RectF
 import android.os.Bundle
 import android.os.Parcel
@@ -353,7 +352,7 @@ class ZoomableChartView @JvmOverloads constructor(
             KeyEvent.KEYCODE_DPAD_RIGHT -> 1
             else -> return super.onKeyDown(keyCode, event)
         }
-        if (entries.isEmpty()) return true
+        if (entries.isEmpty()) return super.onKeyDown(keyCode, event)
         val start = if (selectedIndex == -1) {
             if (delta > 0) -1 else entries.size
         } else selectedIndex
@@ -436,6 +435,12 @@ class ZoomableChartView @JvmOverloads constructor(
             override fun createFromParcel(p: Parcel) = SavedState(p)
             override fun newArray(size: Int): Array<SavedState?> = arrayOfNulls(size)
         }
+    }
+
+    override fun onDetachedFromWindow() {
+        // 监听器通常持有外部回调，detach 时清空，避免控件泄漏。
+        selectionListener = null
+        super.onDetachedFromWindow()
     }
 }
 ```

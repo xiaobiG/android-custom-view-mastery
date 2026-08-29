@@ -226,29 +226,87 @@ class ZoomCanvasView @JvmOverloads constructor(
 import android.view.MotionEvent
 import kotlin.math.atan2
 
-private const val NO_ID = -1
+/**
+ * 旋转手势控制：把旋转状态封装为类成员（私有属性），
+ * 避免用文件级可变全局变量在多个实例间共享状态。
+ */
+class RotationGestureController {
 
-private var firstId = NO_ID
-private var secondId = NO_ID
-private var previousAngle = 0f
-private var rotationDegrees = 0f
+    private var firstId = NO_ID
+    private var secondId = NO_ID
+    private var previousAngle = 0f
 
-private fun angle(event: MotionEvent, id1: Int, id2: Int): Float? {
-    val i1 = event.findPointerIndex(id1)
-    val i2 = event.findPointerIndex(id2)
-    if (i1 < 0 || i2 < 0) return null
-    val radians = atan2(
-        event.getY(i2) - event.getY(i1),
-        event.getX(i2) - event.getX(i1)
-    )
-    return Math.toDegrees(radians.toDouble()).toFloat()
-}
+    /** 累计旋转角（度），供绘制或模型更新使用。 */
+    var totalDegrees: Float = 0f
+        private set
 
-private fun normalizedDelta(current: Float, previous: Float): Float {
-    var delta = current - previous
-    while (delta > 180f) delta -= 360f
-    while (delta < -180f) delta += 360f
-    return delta
+    /** 第 1 指 DOWN：保存 firstId。 */
+    fun onFirstPointerDown(event: MotionEvent) {
+        firstId = event.getPointerId(0)
+    }
+
+    /** 第 2 指 POINTER_DOWN：保存 secondId 并计算基准角。 */
+    fun onSecondPointerDown(event: MotionEvent): Boolean {
+        secondId = event.getPointerId(event.actionIndex)
+        val current = angle(event, firstId, secondId) ?: return false
+        previousAngle = current
+        return true
+    }
+
+    /** MOVE：当前角减基准角，归一化后累加，再更新基准角。 */
+    fun onMove(event: MotionEvent): Float? {
+        val current = angle(event, firstId, secondId) ?: return null
+        totalDegrees += normalizedDelta(current, previousAngle)
+        previousAngle = current
+        return totalDegrees
+    }
+
+    /** 任一参与指针 UP：若仍有两指，重选一对并重设基准角；否则清空状态。 */
+    fun onPointerUp(event: MotionEvent) {
+        val upId = event.getPointerId(event.actionIndex)
+        if (upId != firstId && upId != secondId) return
+        if (event.pointerCount < 2) {
+            reset()
+            return
+        }
+        val remaining = if (upId == firstId) secondId else firstId
+        firstId = remaining
+        secondId = (0 until event.pointerCount)
+            .firstOrNull { event.getPointerId(it) != upId }
+            ?.let { event.getPointerId(it) } ?: NO_ID
+        previousAngle = angle(event, firstId, secondId) ?: 0f
+    }
+
+    /** UP / CANCEL：清空全部 ID 与状态。 */
+    fun reset() {
+        firstId = NO_ID
+        secondId = NO_ID
+        previousAngle = 0f
+        totalDegrees = 0f
+    }
+
+    private fun angle(event: MotionEvent, id1: Int, id2: Int): Float? {
+        if (id1 == NO_ID || id2 == NO_ID) return null
+        val i1 = event.findPointerIndex(id1)
+        val i2 = event.findPointerIndex(id2)
+        if (i1 < 0 || i2 < 0) return null
+        val radians = atan2(
+            event.getY(i2) - event.getY(i1),
+            event.getX(i2) - event.getX(i1)
+        )
+        return Math.toDegrees(radians.toDouble()).toFloat()
+    }
+
+    private fun normalizedDelta(current: Float, previous: Float): Float {
+        var delta = current - previous
+        while (delta > 180f) delta -= 360f
+        while (delta < -180f) delta += 360f
+        return delta
+    }
+
+    private companion object {
+        const val NO_ID = -1
+    }
 }
 ```
 
@@ -259,7 +317,7 @@ private fun normalizedDelta(current: Float, previous: Float): Float {
 第 2 指 POINTER_DOWN
                    保存 secondId，计算 previousAngle
 MOVE               currentAngle - previousAngle
-                   -> 归一化 -> 累加 rotationDegrees
+                   -> 归一化 -> 累加 totalDegrees
                    -> previousAngle = currentAngle
 任一参与指针 UP    结束旋转；若仍有两指，重新选对并重设基准角
 UP / CANCEL        清空全部 ID 与状态

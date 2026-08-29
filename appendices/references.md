@@ -89,7 +89,6 @@
 - [Create a custom view class：Apply custom attributes](https://developer.android.com/develop/ui/views/layout/custom-views/create-view#customattr)
 - [Saving UI states](https://developer.android.com/topic/libraries/architecture/saving-states)
 - [View.BaseSavedState API Reference](https://developer.android.com/reference/android/view/View.BaseSavedState)
-- [Custom view components](https://developer.android.com/guide/topics/ui/custom-components)
 - [Support different languages and cultures](https://developer.android.com/training/basics/supporting-devices/languages)
 - [Support different pixel densities](https://developer.android.com/training/multiscreen/screendensities)
 - [Support different screen sizes](https://developer.android.com/guide/practices/screens_support)

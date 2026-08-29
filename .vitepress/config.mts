@@ -45,8 +45,8 @@ export default defineConfig({
   outDir: 'dist',
   vite: {
     build: {
-      // The local full-text index for this 58-page book is expected to be ~808 KB.
-      chunkSizeWarningLimit: 900,
+      // The local full-text index for this 62-page book is expected to be under 1 MB.
+      chunkSizeWarningLimit: 1000,
     },
   },
   srcExclude: [

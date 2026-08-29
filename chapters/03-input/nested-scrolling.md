@@ -79,8 +79,9 @@ post 阶段继续消费了多少。
 
 ## 实现 `NestedScrollingChild3`
 
-下面的纵向 View 展示完整的 Child3 委托和每帧流水线。需要依赖
-`androidx.core:core-ktx`（版本由项目依赖目录统一管理）。
+下面的纵向 View 展示完整的 Child3 委托和每帧流水线。文中涉及的 `NestedScrollingChild3`、
+`NestedScrollingChildHelper` 与 `ViewCompat` 均来自 `androidx.core:core`
+（版本由项目依赖目录统一管理）。
 
 ```kotlin
 package com.example.input
@@ -104,7 +105,6 @@ class NestedPanView @JvmOverloads constructor(
     private val postConsumed = IntArray(2)
 
     private var lastY = 0f
-    private var nestedYOffset = 0
     private var contentY = 0
     private var maxContentY = 0
 
@@ -116,7 +116,6 @@ class NestedPanView @JvmOverloads constructor(
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 lastY = event.y
-                nestedYOffset = 0
                 startNestedScroll(
                     ViewCompat.SCROLL_AXIS_VERTICAL,
                     ViewCompat.TYPE_TOUCH
@@ -135,7 +134,6 @@ class NestedPanView @JvmOverloads constructor(
                     dy -= parentConsumed[1]
                     // 祖先滚动可能使本 View 在窗口中移动，修正触摸锚点。
                     lastY = event.y - parentOffset[1]
-                    nestedYOffset += parentOffset[1]
                 } else {
                     lastY = event.y
                 }
@@ -157,7 +155,6 @@ class NestedPanView @JvmOverloads constructor(
                 )
                 // 若继续以事件局部坐标计算，应累计 post 阶段的窗口移动。
                 lastY -= parentOffset[1]
-                nestedYOffset += parentOffset[1]
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
@@ -432,6 +429,68 @@ UP
 `dispatchNestedPreFling/dispatchNestedFling` 没有 type 参数，是早期协议的一部分；真正逐帧分配
 fling 位移时仍应使用 `TYPE_NON_TOUCH`。父容器不要把非触摸滚动误当成手指拖动，例如不要
 在 fling 期间显示仅属于直接触摸的按压反馈。
+
+配合 `NestedScrollingChildHelper` 的完整调用示例：`ACTION_UP` 时先询问 pre-fling，再决定
+是否启动本地 fling，随后以 `TYPE_NON_TOUCH` 开启新会话，逐帧走与触摸路径相同的
+pre -> 本地 -> post 流水线：
+
+```kotlin
+// NestedPanView 的补充成员；需额外 import android.widget.Scroller 与
+// android.view.VelocityTracker，并在 onDetachedFromWindow() 中 recycle() tracker。
+private val scroller = Scroller(context)
+private val velocityTracker = VelocityTracker.obtain()
+private var lastFlingY = 0
+
+private fun beginFlingFromUp(event: MotionEvent) {
+    velocityTracker.addMovement(event)
+    velocityTracker.computeCurrentVelocity(1000)
+    val vy = velocityTracker.yVelocity
+    if (dispatchNestedPreFling(0f, vy)) return // 祖先接管整段 fling
+    // 本地能否启动 fling：此处简化为速度非零，生产可参考触摸阈值。
+    val willFling = vy != 0f
+    if (willFling) {
+        scroller.fling(0, contentY, 0, vy.toInt(), 0, 0, 0, maxContentY)
+        lastFlingY = contentY
+        startNestedScroll(ViewCompat.SCROLL_AXIS_VERTICAL, ViewCompat.TYPE_NON_TOUCH)
+        postOnAnimation(flingRunnable)
+    }
+    dispatchNestedFling(0f, vy, willFling) // 让祖先知道本地是否消费
+}
+
+private val flingRunnable = object : Runnable {
+    override fun run() {
+        if (!scroller.computeScrollOffset()) {
+            stopNestedScroll(ViewCompat.TYPE_NON_TOUCH)
+            return
+        }
+        var dy = scroller.currY - lastFlingY
+        lastFlingY = scroller.currY
+
+        // 与触摸路径相同的三阶段，只是 type 换成 TYPE_NON_TOUCH。
+        parentConsumed.fill(0)
+        if (dispatchNestedPreScroll(0, dy, parentConsumed, null, ViewCompat.TYPE_NON_TOUCH)) {
+            dy -= parentConsumed[1]
+        }
+        val oldY = contentY
+        contentY = (contentY + dy).coerceIn(0, maxContentY)
+        val consumedByMe = contentY - oldY
+        val unconsumed = dy - consumedByMe
+        if (consumedByMe != 0) invalidate()
+
+        postConsumed.fill(0)
+        dispatchNestedScroll(
+            0, consumedByMe, 0, unconsumed, null,
+            ViewCompat.TYPE_NON_TOUCH, postConsumed
+        )
+        postOnAnimation(this)
+    }
+}
+```
+
+两类滚动的嵌套协议差异：`TYPE_TOUCH` 与 `TYPE_NON_TOUCH` 是两条独立会话，start/stop 必须
+配对；`dispatchNestedPreFling/dispatchNestedFling` 只用于 fling 开始瞬间的速度协商，而
+逐帧位移仍走 `TYPE_NON_TOUCH` 的 pre/本地/post 三阶段。祖先在 `onNestedScroll` 中通过
+type 区分输入来源，从而决定是否给出仅属于直接触摸的反馈（如按压态）。
 
 ## Child3 / Parent3 相比旧版本解决了什么
 

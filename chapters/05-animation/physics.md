@@ -88,7 +88,19 @@ fun releaseThumb(velocityX: Float) {
 }
 ```
 
-边界依赖布局尺寸，因此尺寸变化后要更新 `setMinValue`/`setMaxValue`。启动值必须位于边界内，否则动画可能抛出异常。速度来自 `VelocityTracker` 时，通常调用 `computeCurrentVelocity(1000, maxVelocity)`，得到 px/s。
+边界依赖布局尺寸，因此尺寸变化后要更新 `setMinValue`/`setMaxValue`。启动值应位于边界内；
+若越界，`FlingAnimation` 会把值约束在 min/max 范围内：到达边界即停止并回调
+`onAnimationEnd`，不要依赖"抛异常"来兜底。速度来自 `VelocityTracker` 时，通常调用
+`computeCurrentVelocity(1000, maxVelocity)`，得到 px/s。
+
+> **注意**：示例中的 `minThumbX`/`maxThumbX` 是滑块边界（由布局宽度与 thumb 尺寸推导），
+> `maximumFlingVelocity` 来自 `ViewConfiguration.getScaledMaximumFlingVelocity()`；它们是
+> 控件自身的成员/常量，正文为突出动画逻辑而省略了定义。
+
+`FlingAnimation` 还有 `setMinimumVisibleChange(value)`：当速度使每帧位移低于该值（像素或
+度数）时，动画视为“视觉上已停止”并提前结束。默认值与属性类型相关（像素属性约 0.5 px），
+值设得过大时动画会明显“提前停”——这常被误判为 bug。需要完整跑完减速过程时，应改用更小
+的阈值，而不是靠调整摩擦值硬凑。
 
 ## 4. 完整的拖拽—释放衔接
 

@@ -102,6 +102,46 @@ detach。更简洁时可使用 `withLayer()`，但仍须测量层建立成本与
 | View 接近全屏 | 谨慎建层 | 大纹理、带宽 | GPU 时间与 PSS/显存代理指标 |
 | 只需单个不支持效果的软件 fallback | View 级软件层 | CPU 与 Bitmap 成本 | 限定 View，验证滚动与视觉 |
 
+### 3.2 动画期间的临时层：`withLayer()`
+
+`ViewPropertyAnimator.withLayer()` 是"临时硬件层"的封装：动画开始时把 View 切换为
+`LAYER_TYPE_HARDWARE`，动画结束（含取消路径）恢复为
+`LAYER_TYPE_NONE`。动画期间 View 内容被栅格化进一个纹理，alpha、translation 等只改变
+合成参数，逐帧更新不再重录整棵 display list。相比手写 `setLayerType` + `withEndAction`，
+它把结束恢复纳入框架回调：
+
+```kotlin
+view.animate()
+    .alpha(0f)
+    .translationY(view.height * 0.25f)
+    .setDuration(220L)
+    .withLayer()          // 开始置 HARDWARE，结束自动恢复 NONE
+    .withEndAction { /* 业务清理 */ }
+    .start()
+```
+
+`setLayerType(type, paint)` 的三种类型差异：
+
+| 类型 | 行为 | 典型用途 | 代价 |
+|---|---|---|---|
+| `LAYER_TYPE_NONE` | 不创建层，直接绘制 | 默认 | 无 |
+| `LAYER_TYPE_HARDWARE` | 内容栅格化进 GPU 纹理，合成属性可复用 | 静态内容的 alpha/translation 动画 | 显存纹理、首帧建层尖峰 |
+| `LAYER_TYPE_SOFTWARE` | CPU 绘制到 Bitmap 再上传 | 硬件加速下需软件 fallback 的效果 | CPU 栅格化、上传与内存 |
+
+`paint` 参数：`LAYER_TYPE_NONE` 时忽略；硬件/软件层可传入携带 alpha 或 color filter 的
+`Paint`，合成该层时生效（例如让整层半透明）。
+
+何时该用、何时不该用：
+
+- 该用：内容静态，动画只改变合成属性（alpha/translation/scale/rotation），且动画短暂。
+- 不该用：内容每帧变化（进度条、逐帧重建的 Path、实时数据），此时层每帧重建，反而更慢、
+  内存更高。
+- 内存代价：硬件层占显存纹理，软件层占 Bitmap 内存；接近全屏的 View 代价最大。动画结束后
+  应确认恢复为 `LAYER_TYPE_NONE`。
+
+> **注意**：`withLayer()` 的“结束自动恢复”以动画正常走完为前提；若动画被取消或 View 提前
+> detach，仍应按第 3 节方式兜底清理，不能只依赖 `withEndAction`。
+
 ## 4. `save()` 与 `saveLayer()` 不是一回事
 
 `save()` 保存 Canvas 状态；`saveLayer()` 通常创建离屏渲染目标，把内容先画入该层，再按 Paint

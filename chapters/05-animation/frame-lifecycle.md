@@ -125,6 +125,36 @@ class WaveView @JvmOverloads constructor(
 > **注意**
 > `Choreographer.getInstance()` 必须在线程具有 Looper 时调用；View 动画通常应在主线程操作。
 
+### Choreographer 的补充 API
+
+除 `postFrameCallback` 外，还有几个调整帧节奏与回调生命周期的 API（`setFrameDelay`/
+`postFrameCallbackDelayed`/`removeFrameCallback` 为 API 16，`getFrameIntervalNanos` 为
+API 17）：
+
+- `setFrameDelay(long)`（API 16）：设置帧回调相对 VSYNC 的延迟（纳秒），影响该线程上 Choreographer 实例的全部回调。测试中可放慢动画、固定帧间隔，便于断言中间帧；生产代码几乎不应改动。
+- `getFrameIntervalNanos()`（API 17）：返回当前帧间隔（60 Hz 约 16,666,667 纳秒）。用它计算动画步长可与真实刷新率对齐，而不是硬编码 `16ms`。
+- `postFrameCallbackDelayed(FrameCallback, long)`（API 16）：在下一帧之后额外延迟指定毫秒数再执行回调，仍落在帧节奏上。注意参数是 `Choreographer.FrameCallback`，不是 `Runnable`。
+- `removeFrameCallback(FrameCallback)`：取消尚未执行的帧回调；若回调已在 `doFrame` 中执行，本次无法中止，只能阻止后续再触发。
+
+```kotlin
+// 测试中放慢帧节奏，得到可预测的中间帧。
+val choreographer = Choreographer.getInstance()
+val originalDelay = choreographer.frameDelay
+try {
+    choreographer.frameDelay = originalDelay * 2L
+    // 驱动动画并断言中间进度……
+} finally {
+    choreographer.frameDelay = originalDelay // 必须还原，它是线程级全局状态
+}
+
+// 下一帧之后额外延迟 100 ms 再执行。
+Choreographer.getInstance().postFrameCallbackDelayed({ frameTimeNanos ->
+    applyPendingUpdate()
+}, 100L)
+```
+
+> **注意**：`setFrameDelay()` 影响整个线程共享的 Choreographer 实例，测试中必须 `try/finally` 还原，否则会污染其他用例的帧节奏。
+
 ## 3. frameTimeNanos 的语义
 
 回调可能因为主线程繁忙而延迟。`System.nanoTime()` 表示“代码现在运行的时刻”，`frameTimeNanos` 表示该帧的统一时间基准。多个同帧回调使用后者可保持一致。

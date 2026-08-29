@@ -36,6 +36,40 @@ bytes = rowBytes × height ≈ width × height × 4
 
 大图先读取 bounds，再选择 `inSampleSize`。采样目标应覆盖最终显示尺寸，避免解码远大于目标，也避免过度采样后再放大而模糊。
 
+## inBitmap 位图复用
+
+连续解码多张相似图片时，每次 `decodeResource` 都会新分配一块像素内存。`BitmapFactory.Options.inBitmap` 让解码器把新位图的像素写入一块已有位图的内存而不是新分配，适合列表滚动中反复解码的缩略图、连拍帧等场景，能减少分配与 GC 压力。
+
+```kotlin
+// 调用方维护一个可复用池；只放“尺寸足够大且已无引用”的位图。
+val reusePool = ArrayDeque<Bitmap>()
+
+fun decodeWithReuse(resId: Int): Bitmap {
+    val candidate = reusePool.lastOrNull()
+    val options = BitmapFactory.Options().apply {
+        inSampleSize = 2 // 与 inBitmap 组合需 API 19+；真实实现按目标尺寸计算
+        if (candidate != null) {
+            inBitmap = candidate // 复用 candidate 的像素内存
+            inMutable = true     // 被复用的位图必须是可变的
+        }
+    }
+    return requireNotNull(BitmapFactory.decodeResource(resources, resId, options)) {
+        "Unable to decode resource $resId"
+    }
+}
+```
+
+适用条件与版本：
+
+- API 11 起支持 `inBitmap`。API 11–18 限制严格：被复用位图必须与解码结果尺寸、配置完全相同，且 `inSampleSize` 必须为 1。
+- API 19（KitKat）起放宽：被复用位图只要不小于解码结果即可，采样后的尺寸也可小于复用对象；配置仍需兼容。
+- 被复用的位图必须 `isMutable`，且不能是硬件 Bitmap（HARDWARE 配置用于只读 GPU 绘制，不能复用）。
+- `inJustDecodeBounds = true` 的第一次只读 bounds、不分配像素，与 `inBitmap` 无冲突；真正的复用发生在第二次实际解码时，此时可同时携带 `inSampleSize`。
+
+> **注意**：复用失败会在解码时抛 `IllegalArgumentException`，典型原因包括 `inMutable` 为 false、尺寸/配置不兼容，或对象仍在绘制/使用中。把候选位图放回池前必须移除对其的全部引用。
+
+> **性能提示**：`inBitmap` 省的是“分配新像素内存”的成本，解码与采样本身仍要执行。只有当候选池命中率高、对象生命周期可控时才值得维护；池与位图本身也是内存成本。
+
 ## 完整 Kotlin 示例：按目标尺寸采样并绘制 Drawable
 
 ```kotlin

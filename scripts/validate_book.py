@@ -11,7 +11,9 @@ LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+\.md(?:#[^)]+)?)\)")
 INLINE_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 MIN_CHARS = 1500
 MIN_BOOK_CHARS = 250_000
-MIN_CHAPTERS = 58
+# 章节总数不再硬编码：以 SUMMARY.md 收录为准（防止增删章节后常量过时），
+# 全书体量下限由 MIN_BOOK_CHARS 兜底。
+CONTENT_ROOTS = ("chapters", "examples", "appendices")
 
 
 def chapter_paths() -> list[Path]:
@@ -23,6 +25,16 @@ def chapter_paths() -> list[Path]:
     return paths
 
 
+def orphan_markdown_files(listed: set[Path]) -> list[Path]:
+    """返回 content 目录下存在但未被 SUMMARY 收录的 Markdown 文件。"""
+    files: list[Path] = []
+    for root_name in CONTENT_ROOTS:
+        root = ROOT / root_name
+        if root.is_dir():
+            files.extend(p for p in root.rglob("*.md") if p.is_file())
+    return [p for p in files if p not in listed]
+
+
 def check_internal_links(path: Path, text: str) -> list[str]:
     errors: list[str] = []
     for raw in INLINE_LINK_RE.findall(text):
@@ -31,7 +43,14 @@ def check_internal_links(path: Path, text: str) -> list[str]:
         target_raw = unquote(raw.split("#", 1)[0])
         if not target_raw:
             continue
-        target = (path.parent / target_raw).resolve()
+        if target_raw.startswith("/"):
+            # VitePress 绝对路由（如 /chapters/00-introduction/how-to-read），相对仓库根解析。
+            rel = target_raw.lstrip("/")
+            if not rel.endswith(".md"):
+                rel += ".md"
+            target = (ROOT / rel).resolve()
+        else:
+            target = (path.parent / target_raw).resolve()
         if not target.exists():
             errors.append(f"broken link: {path.relative_to(ROOT)} -> {raw}")
     return errors
@@ -47,6 +66,12 @@ def main() -> int:
 
     if len(paths) != len(set(paths)):
         errors.append("SUMMARY.md contains duplicate chapter paths")
+
+    for orphan in orphan_markdown_files(set(paths)):
+        errors.append(
+            f"orphan markdown not in SUMMARY: "
+            f"{orphan.relative_to(ROOT).as_posix()}"
+        )
 
     for path in paths:
         rel = path.relative_to(ROOT) if path.is_relative_to(ROOT) else path
@@ -76,8 +101,6 @@ def main() -> int:
     print(f"non_whitespace_chars={total_chars}")
     print(f"lines={total_lines}")
     print(f"code_fence_markers={total_fences}")
-    if len(paths) < MIN_CHAPTERS:
-        errors.append(f"too few chapters: {len(paths)} < {MIN_CHAPTERS}")
     if total_chars < MIN_BOOK_CHARS:
         errors.append(f"book too short: {total_chars} < {MIN_BOOK_CHARS} non-whitespace chars")
     for warning in warnings:

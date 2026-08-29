@@ -12,6 +12,8 @@
 - 正确处理 padding、margin、RTL 与 GONE 子元素；
 - 判断几何缓存应在何处更新。
 
+其中 `setFrame()` 是把 `layout()` 传入的四条边真正写入 View 并触发尺寸相关回调的步骤，是理解“布局副作用”的关键，将在第二节单独展开。
+
 ## 一、布局阶段的核心数据
 
 View 的 `left`、`top`、`right`、`bottom` 是相对父 View 内容坐标系的布局边界：
@@ -57,6 +59,26 @@ ViewGroup.onLayout(...)
 ```
 
 “位置向上确定”容易产生歧义：子 View 把测量结果返回给父级后，父级拥有更高层的布局决策权；真正的边界调用仍是从父向子传递。也就是说，**尺寸信息向父级汇总，位置决策由父级产生并向子级下发**。
+
+### layout() 内部：setFrame() 更新四条边
+
+`View.layout()` 不是直接给 `mLeft/mRight/mTop/mBottom` 赋值，而是先记录旧边界，再调用 `setFrame(left, top, right, bottom)`。`setFrame()` 负责比较新旧边界、写入四个字段，并在尺寸变化时触发 `onSizeChanged()`；`layout()` 随后根据 `setFrame()` 的返回值决定是否进入 `onLayout()`，并向注册了 `OnLayoutChangeListener` 的监听器派发新老边界。
+
+```text
+layout(l, t, r, b)
+  ├─ 记录 oldL/oldT/oldR/oldB
+  ├─ setFrame(l, t, r, b)
+  │    ├─ 边界未变 → 返回 false
+  │    └─ 边界变化 → 更新 mLeft/mTop/mRight/mBottom
+  │         └─ 尺寸变化 → sizeChange → onSizeChanged
+  ├─ changed（或需要重新布局）→ onLayout(...)
+  └─ changed → 派发 OnLayoutChangeListener
+```
+
+两个对自定义控件重要的推论：
+
+1. `setFrame()` 返回 `Boolean` 表示边界是否变化。尺寸变化才会触发 `onSizeChanged()`；只移动位置、尺寸不变时不会触发，因此不能用 `onSizeChanged()` 代替“每次边界变化都要更新的逻辑”。
+2. 普通 View 的 `onLayout()` 是空实现，只有 ViewGroup 在这里排布子元素。自定义 View 通常不需要也不应该覆盖 `onLayout()`；需要监听边界变化时，注册 `OnLayoutChangeListener` 比拦截 `setFrame()` 更干净。
 
 ## 三、onSizeChanged 与几何缓存
 

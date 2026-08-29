@@ -230,6 +230,16 @@ class Camera {
         worldToView.postScale(target / scale(), target / scale(), focusX, focusY)
     }
 
+    // 恢复状态或尺寸变化后调用：把当前 scale 收敛回 [minScale, maxScale]。
+    // setValues()/postTranslate 等直接修改矩阵的路径不会自动执行约束。
+    fun clampScale() {
+        val current = scale()
+        val clamped = current.coerceIn(minScale, maxScale)
+        if (clamped != current) {
+            worldToView.postScale(clamped / current, clamped / current)
+        }
+    }
+
     fun viewToWorld(x: Float, y: Float): Vec2? {
         if (!worldToView.invert(inverse)) return null
         point[0] = x; point[1] = y
@@ -447,6 +457,8 @@ class DiagramEditorView @JvmOverloads constructor(
     private val worldViewport = RectF()
     private val scaleDetector = ScaleGestureDetector(context, ScaleListener())
     private var tool: EditorTool = SelectionTool()
+    /** 当前文档标识，由宿主在 bind 前设置；SavedState 会保存它用于恢复。 */
+    var documentId: String? = null
     lateinit var controller: EditorController
         private set
     private lateinit var session: EditorSession
@@ -479,6 +491,10 @@ class DiagramEditorView @JvmOverloads constructor(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (!::controller.isInitialized || !::session.isInitialized) {
+            // 与 onDraw 的检查保持一致：未绑定数据前不消费输入。
+            return super.onTouchEvent(event)
+        }
         scaleDetector.onTouchEvent(event)
         if (scaleDetector.isInProgress || event.pointerCount > 1) {
             tool.onCancel(session)
@@ -527,6 +543,80 @@ class DiagramEditorView @JvmOverloads constructor(
         override fun onScale(d: ScaleGestureDetector): Boolean {
             camera.zoomBy(d.scaleFactor, d.focusX, d.focusY)
             invalidate(); return true
+        }
+    }
+
+    // SavedState 只保存小型同步状态：documentId、相机 9 个 float、选中 ID、当前工具。
+    override fun onSaveInstanceState(): android.os.Parcelable {
+        val superState = super.onSaveInstanceState()
+        if (!::controller.isInitialized) return superState
+        return SavedState(superState).also { state ->
+            state.documentId = documentId
+            camera.worldToView.getValues(state.camera)
+            state.selectedIds = controller.selection.map(NodeId::raw).toTypedArray()
+            state.activeTool = tool::class.simpleName ?: "SelectionTool"
+        }
+    }
+
+    override fun onRestoreInstanceState(state: android.os.Parcelable?) {
+        if (state !is SavedState) {
+            super.onRestoreInstanceState(state)
+            return
+        }
+        super.onRestoreInstanceState(state.superState)
+        documentId = state.documentId
+        camera.worldToView.setValues(state.camera)
+        camera.clampScale() // 恢复的矩阵可能来自旧尺寸/旧版本，收敛到当前 min/max 范围
+        tool = toolByName(state.activeTool)
+        // 只恢复仍存在于文档中的 ID；controller.select 会做过滤。
+        if (::controller.isInitialized) {
+            controller.select(state.selectedIds.mapTo(linkedSetOf()) { NodeId(it) })
+        }
+        invalidate()
+    }
+
+    private fun toolByName(name: String?): EditorTool = when (name) {
+        "SelectionTool" -> SelectionTool()
+        // 生产环境配合工具注册表按名称构造；未知名称回退默认选择工具。
+        else -> SelectionTool()
+    }
+
+    private class SavedState : android.view.View.BaseSavedState {
+        var documentId: String? = null
+        var camera = FloatArray(9)
+        var selectedIds: Array<String> = emptyArray()
+        var activeTool: String? = null
+
+        constructor(superState: android.os.Parcelable?) : super(superState)
+
+        private constructor(
+            source: android.os.Parcel,
+            loader: ClassLoader?
+        ) : super(source, loader) {
+            documentId = source.readString()
+            source.readFloatArray(camera)
+            selectedIds = source.createStringArray() ?: emptyArray()
+            activeTool = source.readString()
+        }
+
+        override fun writeToParcel(out: android.os.Parcel, flags: Int) {
+            super.writeToParcel(out, flags)
+            out.writeString(documentId)
+            out.writeFloatArray(camera)
+            out.writeStringArray(selectedIds)
+            out.writeString(activeTool)
+        }
+
+        companion object CREATOR : android.os.Parcelable.ClassLoaderCreator<SavedState> {
+            override fun createFromParcel(source: android.os.Parcel): SavedState =
+                SavedState(source, null)
+
+            override fun createFromParcel(
+                source: android.os.Parcel,
+                loader: ClassLoader?
+            ): SavedState = SavedState(source, loader)
+
+            override fun newArray(size: Int): Array<SavedState?> = arrayOfNulls(size)
         }
     }
 

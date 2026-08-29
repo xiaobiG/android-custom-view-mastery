@@ -206,6 +206,36 @@ adb pull /data/misc/perfetto-traces/chart.perfetto-trace .
 7. 建立可证伪假设，做一次单变量 A/B
 ```
 
+步骤 1、2 里的 "expected timeline 与 actual timeline" 具体读什么？Perfetto 的
+FrameTimeline 轨道同时给出两条时间线（该数据源仅在 Android 11 / API 30+ 系统可用，
+以 `perfetto --query` 确认设备是否支持）：
+
+```text
+expected（期望）轨道，按 vsync 切分帧槽：
+vsync      v0     v1     v2     v3     v4
+帧槽     ┌──A────┬──B────┬──C────┬──D────┬──E────┐
+         │  每个帧槽 = 一个刷新周期，期望帧在下一 vsync 前完成 │
+         └───────┴───────┴───────┴───────┴───────┘
+
+actual（实际）轨道，记录真实 CPU/GPU 完成情况：
+帧 A 正常：  ┌────────┐
+            │CPU   GPU│ 完成 < v1        -> 按时显示
+帧 B 临界：    ┌──────────────────┐
+              │CPU            GPU│ 完成 ≈ v2     -> 勉强赶上
+帧 C 掉帧：      ┌──────────────────────────────────────┐
+                │CPU                    GPU            │ 完成 > v3
+                ▼                                      ▼
+               v2、v3 两个帧槽无对应输出 -> 屏幕沿用旧帧 -> 卡顿
+```
+
+读图定位卡顿阶段的顺序：
+
+1. 在 actual 轨道找“完成时间越过本帧 expected deadline”的帧，即完成晚于下一 vsync 的帧。
+2. 看该帧里 CPU 段（frameStartTime 到提交 display list）与 RenderThread/GPU 段（到 GPU
+   completion）谁更长：前者指向 UI 线程，后者指向渲染/GPU（对照下方诊断表）。
+3. 掉帧区间 = 有 expected 帧槽但 actual 无对应输出的间隙；其跨度说明卡顿持续了几个刷新
+   周期，而不是只看单帧耗时。帧槽与实际帧通过 vsync id 关联，上图仅为示意。
+
 ### 5.1 诊断表：常见轨道解释
 
 | Trace 证据 | 可能根因 | 验证动作 | 不能直接推出 |

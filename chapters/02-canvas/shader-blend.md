@@ -105,6 +105,75 @@ class ShaderAvatarView @JvmOverloads constructor(
 
 该实现直接用 `BitmapShader` 裁成圆形，不需要离屏层。只有必须让多次绘制先成为一个整体，再与背景混合时，才使用 `saveLayer(bounds, paint)`。
 
+## RadialGradient / SweepGradient / ComposeShader
+
+`LinearGradient` 是两点间渐变；另外两种内建渐变按不同几何生成颜色。
+
+`RadialGradient(centerX, centerY, radius, colors, stops, tileMode)` 以某点为圆心、按半径向外扩散颜色，适合圆形光晕、聚光灯、涟漪。`stops` 传 null 时颜色均匀分布；`tileMode` 决定半径之外的区域如何填充：
+
+```kotlin
+val halo = RadialGradient(
+    cx, cy, radius,
+    intArrayOf(Color.WHITE, Color.TRANSPARENT),
+    null, Shader.TileMode.CLAMP
+)
+paint.shader = halo
+```
+
+`SweepGradient(cx, cy, colors, stops)` 没有 tileMode 参数：颜色围绕圆心自正 x 轴起按角度分布一周，适合表盘、色环、音量环。想要旋转起始角度时，用局部矩阵旋转 shader，而不是旋转整个 Canvas：
+
+```kotlin
+val sweep = SweepGradient(cx, cy, colors, null).apply {
+    val m = Matrix().apply { setRotate(rotationDegrees, cx, cy) }
+    setLocalMatrix(m)
+}
+paint.shader = sweep
+```
+
+`ComposeShader(shaderA, shaderB, mode)` 把两个 shader 的逐像素输出按混合模式组合，例如用 `LinearGradient` 给 `BitmapShader` 上色，或用渐变遮罩只透出位图的特定区域：
+
+```kotlin
+val composed = ComposeShader(
+    bitmapShader, // 底层位图
+    gradientShader, // 叠加的渐变
+    PorterDuff.Mode.SRC_IN // 保留源在目标 alpha 范围内的部分
+)
+paint.shader = composed
+```
+
+`ComposeShader` 的第三个参数 API 29+ 也可传 `BlendMode`。组合模式对顺序敏感；与 Shader 坐标一样，尺寸变化时应重建或更新。
+
+## ColorFilter
+
+`Shader` 决定逐像素的“颜色来源”；`ColorFilter` 在同一像素上对源颜色做变换，变换结果再进入混合。通过 `paint.colorFilter`（或 `Drawable.colorFilter` / `setColorFilter()`）设置后，作用于该绘制操作的所有像素。
+
+| 类 | 语义 | 典型用途 |
+|---|---|---|
+| `LightingColorFilter(mul, add)` | 每通道先乘 `mul` 后加 `add` | 图标染色、模拟光照 |
+| `PorterDuffColorFilter(color, mode)` | 颜色与源像素按混合模式组合 | 用单一颜色 tint 图标 |
+| `ColorMatrixColorFilter(ColorMatrix)` | 4×5 矩阵逐像素变换 | 灰度、对比度、色彩校正 |
+| `BlendModeColorFilter(color, mode)` | 同 PorterDuffColorFilter，但用 BlendMode | API 29+ 的替代实现 |
+
+```kotlin
+// 给任意绘制着色，并保留形状的 alpha。
+paint.colorFilter = PorterDuffColorFilter(
+    Color.rgb(63, 81, 181),
+    PorterDuff.Mode.SRC_IN
+)
+
+// 灰度化：把 RGB 饱和度归零。
+val matrix = ColorMatrix().apply { setSaturation(0f) }
+paint.colorFilter = ColorMatrixColorFilter(matrix)
+
+// API 29+ 可用 BlendMode 版本。
+paint.colorFilter = BlendModeColorFilter(
+    Color.WHITE,
+    android.graphics.BlendMode.SRC_IN
+)
+```
+
+> **注意**：`ColorFilter` 在混合之前作用于源颜色，“着透明色”不等于擦除目标。`PorterDuffColorFilter` 适合兼容旧 API，`BlendModeColorFilter` 在 API 29+ 与 `Paint.blendMode` 体系一致。`ComposeShader` 在部分硬件加速路径上的非 SRC_OVER 组合行为需真机核验。
+
 ## saveLayer 的语义
 
 ```kotlin

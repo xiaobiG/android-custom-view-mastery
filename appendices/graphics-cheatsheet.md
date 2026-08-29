@@ -114,9 +114,11 @@ fun withAlpha(@ColorInt color: Int, alpha: Float): Int =
 | `quadTo` | 二次贝塞尔：1 控制点 |
 | `cubicTo` | 三次贝塞尔：2 控制点 |
 | `close` | 当前轮廓闭合到起点 |
-| `reset` | 清空并保留内部存储，适合复用 |
-| `rewind` | 清空路径并保留数据结构；语义也用于复用 |
+| `reset` | 完全清除路径数据：点、命令与填充类型等全部重置 |
+| `rewind` | 清除点与命令，但保留内部缓冲区与填充类型等设置 |
 | `PathMeasure` | 长度、位置、切线与分段 |
+
+`reset()` 连 `fillType` 也一并还原为默认的 `WINDING`，适合“真正从零开始”构建一条新路径；`rewind()` 不清 `fillType`、保留内部存储，适合循环复用同一个 Path 反复填充不同图形——两者都能清空内容，但只有 `rewind()` 通过复用对象减少分配。
 
 `RectF` 使用 `[left, top, right, bottom]`。确保 `left <= right`、`top <= bottom`；负宽高不会自动“修好”。旋转矩形经 `Matrix.mapRect()` 后得到轴对齐包围盒。
 

@@ -123,6 +123,61 @@ class RecordButton @JvmOverloads constructor(
 
 > **注意**：动态文本变化若需要主动播报，优先正确的 live region/内容变化通知；`announceForAccessibility()` 会打断朗读，应只用于确有必要、且没有更结构化表达的短消息。
 
+### labelFor、importantForAccessibility 与 live region
+
+对普通 View，三个常用属性可在 XML 中声明，也可按需用 Kotlin/Compat 设置。
+
+**labelFor**（API 17）：把"作为标签的文本控件"关联到它描述的目标控件，适合无文字但需要名称的输入框或自定义控件。辅助技术朗读标签时，会一并报出被关联控件：
+
+```xml
+<TextView
+    android:id="@+id/label_phone"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="手机号"
+    android:labelFor="@id/phone_input" />
+
+<EditText
+    android:id="@+id/phone_input"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content" />
+```
+
+**importantForAccessibility**（API 16）：控制节点是否对辅助技术可见，取值及语义：
+
+| 取值 | 语义 |
+|---|---|
+| `auto` | 系统根据是否可点击、可聚焦等特征决定（默认） |
+| `yes` | 本 View 重要，其后代除非单独设置，否则也进入无障碍树 |
+| `no` | 本 View 不重要，但后代仍可能各自重要 |
+| `noHideDescendants` | 本 View 与全部后代都不重要 |
+
+装饰性图标应设 `no`；自定义容器若整体用虚拟节点表达语义，可用 `noHideDescendants` 屏蔽子树，避免 TalkBack 重复朗读。它和 `contentDescription` 的关系：`no` 意味着该 View 连名称也不会被读取，装饰图不应依赖描述文案“假装”重要。
+
+```xml
+<ImageView
+    android:id="@+id/decoration_dot"
+    android:layout_width="16dp"
+    android:layout_height="16dp"
+    android:importantForAccessibility="no"
+    android:src="@drawable/ic_dot" />
+```
+
+**live region**（API 19+）：`android:accessibilityLiveRegion="polite|assertive"` 让动态变化主动播报，适合实时状态、加载进度、错误提示等无需焦点即可告知用户的区域；`none` 为默认。Kotlin 中可等价设置，自定义控件可在 delegate 的节点信息中声明：
+
+```kotlin
+labelView.labelFor = R.id.phone_input
+dotView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+ViewCompat.setAccessibilityLiveRegion(
+    statusText,
+    ViewCompat.ACCESSIBILITY_LIVE_REGION_POLITE,
+)
+// 自定义控件在 delegate 中：
+info.liveRegion = ViewCompat.ACCESSIBILITY_LIVE_REGION_POLITE
+```
+
+> **注意**：live region 用于“结构化、可复述的变化”。逐帧变化的数值应节流后报告，否则会造成播报噪声。
+
 ## 4. 自定义动作
 
 当动作无法用点击表达（例如“增加一天”），把它作为命名动作暴露，并令辅助动作和触摸动作调用同一函数。

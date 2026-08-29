@@ -109,6 +109,98 @@ val poseAnimator = ValueAnimator.ofObject(
 
 二维曲线可用 `Path` 与 `ObjectAnimator.ofFloat(target, xProperty, yProperty, path)`（API 21+），或自行用 `PathMeasure` 采样。非均匀关键帧可用 `PropertyValuesHolder`/`Keyframe`：
 
+### 3.3.1 PathMeasure：沿路径按进度取点
+
+`PathMeasure` 把“路径上的弧长”翻译为“坐标与切线”。配合 `ValueAnimator` 把进度映射为
+弧长，就能驱动任意对象沿曲线移动：
+
+```kotlin
+package com.example.animation
+
+import android.animation.ValueAnimator
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.PathMeasure
+import android.util.AttributeSet
+import android.view.View
+import kotlin.math.atan2
+
+/** 平台 API：ValueAnimator（API 11+）、Path、PathMeasure（API 1+）。 */
+class PathFollowerView @JvmOverloads constructor(
+    context: Context,
+    attrs: AttributeSet? = null,
+) : View(context, attrs) {
+
+    private val track = Path().apply {
+        moveTo(80f, 560f)                           // 起点
+        cubicTo(200f, 40f, 440f, 40f, 520f, 560f)   // 三次贝塞尔
+    }
+    private val measure = PathMeasure(track, false) // false：不强制闭合
+    private val length = measure.length             // 整条曲线的弧长（px）
+
+    private val pos = FloatArray(2)                 // 采样点坐标 (x, y)
+    private val tan = FloatArray(2)                 // 采样点切线向量 (dx, dy)
+    private val dot = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFF2196F3.toInt()
+    }
+
+    private val animator = ValueAnimator.ofFloat(0f, 1f).apply {
+        duration = 1200L
+        repeatCount = ValueAnimator.INFINITE
+        repeatMode = ValueAnimator.REVERSE
+        addUpdateListener { a ->
+            val fraction = a.animatedValue as Float
+            // getPosTan 的第一个参数是弧长，不是进度：先乘全长
+            measure.getPosTan(length * fraction, pos, tan)
+            rotation = Math.toDegrees(
+                atan2(tan[1].toDouble(), tan[0].toDouble())
+            ).toFloat()
+            invalidate()
+        }
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        animator.start()
+    }
+
+    override fun onDetachedFromWindow() {
+        animator.cancel() // 生命周期释放，见写作规范
+        super.onDetachedFromWindow()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        canvas.drawCircle(pos[0], pos[1], 26f, dot) // 沿 track 移动的点
+    }
+}
+```
+
+要点：
+
+- `getPosTan(distance, pos, tan)` 的第一个参数是**沿路径的弧长**，不是进度；先
+  `length * fraction` 换算。
+- `tan` 是采样点处的切线向量，`atan2` 可换算为旋转角；若需要路径片段，可用
+  `getSegment()` 分段采样。
+- `PathMeasure` 构造时缓存路径状态；之后修改 `Path` 需要重新构造 `PathMeasure`。
+
+它与 `PathInterpolator` 是两种不同的映射：
+
+```text
+PathInterpolator : 时间 t(0..1) --> 进度 p(0..1)
+                   曲线画在“时间 x 进度”平面，X 必须单调
+
+PathMeasure      : 进度 p(0..1) --> 坐标 (x, y) / 切线 (dx, dy)
+                   曲线画在视图坐标平面，回答“走到哪个像素位置”
+
+组合：PathInterpolator 控制节奏，PathMeasure 提供几何位置。
+```
+
+平台内置的 `ObjectAnimator.ofFloat(view, View.X, View.Y, path)`（API 21+）本质也是“按进度
+沿路径更新两个属性”的便捷实现：若只移动 View 的 `x/y`，优先用它；`PathMeasure` 适合对象
+不是 View、需要同时读取切线做旋转、或要自定义弧长到进度的映射（例如按弧长匀减速）的场景。
+
 ```kotlin
 val scale = PropertyValuesHolder.ofKeyframe(
     View.SCALE_X,

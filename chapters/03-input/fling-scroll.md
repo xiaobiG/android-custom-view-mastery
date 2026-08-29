@@ -143,8 +143,9 @@ class FlingStripView @JvmOverloads constructor(
         if (replacement != null) {
             activeId = event.getPointerId(replacement)
             lastX = event.getX(replacement)
-            tracker?.clear() // 新活动指针不继承旧指针速度历史
-            tracker?.addMovement(event) // 以当前事件作为新活动指针的速度起点
+            // 不要 clear()：VelocityTracker 按 pointer id 保留各自速度历史，
+            // UP 时 computeCurrentVelocity 后按活动 id 读取即可；clear() 会清空
+            // 新活动指针的历史，导致多指切换后最终速度≈0、fling 失效。
         }
     }
 
@@ -186,6 +187,34 @@ View.computeScroll()
 边界来自内容尺寸而非 View 尺寸。例如横向内容宽 `contentWidth`、可视宽
 `width-paddingLeft-paddingRight`，则 `maxX=max(0, contentWidth-viewportWidth)`。数据或尺寸
 变化时应重算，并约束当前位置。
+
+## OverScroller 的两种求解模式
+
+`OverScroller` 内部委托 `SplineOverScroller` 求解，拖动与惯性使用不同曲线（参数以 AOSP
+源码为准，本章只讲结论）：
+
+- **SCROLL_MODE（拖动/慢速滚动）**：按阻尼系数 `friction` 指数衰减速度，低于阈值后转为
+  线性减速直到停止。适合跟随手指或缓慢推进。
+- **FLING_MODE（惯性甩动）**：用三次样条（spline）驱动位置，起点缓出、终点缓入，
+  比恒定摩擦更接近手指甩动的自然手感。
+
+```text
+速度
+ |   摩擦模式：指数/线性衰减          样条模式：缓入缓出
+ |   v                                 v
+ |   |\                                /
+ |   | \___                           /__
+ |   |     \_____                    /    \___
+ |   |           \__________        /          \___
+ +---+----------------------+-->   +---------------------+-->  时间
+    t0                    停止       t0                      停止
+```
+
+`friction` 来自 `ViewConfiguration.getScrollFriction()`，默认约 0.015，且在不同系统/厂商
+配置下可能不同。因此**相同起速的 fling 距离和时长并不跨设备恒定**，不要在代码中硬编码
+对滚动距离的期望；需要精确落点时应通过 `fling()` 的 `minX/maxX` 约束边界，而不是自己
+做二次衰减。定性地看，样条模式下距离与起速近似二次关系（`距离 ≈ 速度²/常数`），时长
+随距离缓慢增长，具体系数以 `SplineOverScroller` 源码为准。
 
 ## 越界与 `EdgeEffect`
 

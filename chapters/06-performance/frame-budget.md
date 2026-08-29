@@ -189,7 +189,7 @@ class TimelineChartView(context: Context) : View(context) {
 | 场景 | 1000 点折线图连续缩放 10 s | 手势/数据完全相同 | UI Automator 脚本 |
 | 测试模式 | 120 Hz、release、温控正常 | 不得发生模式切换 | `dumpsys display` + trace |
 | `frameOverrunMs` p95（API 31+） | 记录实测值 | 低于基线并达到预设容差 | `FrameTimingMetric` 多次迭代 |
-| `frameDurationCpuMs` p95 | 记录实测值 | 低于基线且置信区间不重叠或达到预设容差 | Macrobenchmark JSON |
+| `frameDurationCpuMs` p95（API 31+） | 记录实测值 | 低于基线且置信区间不重叠或达到预设容差 | Macrobenchmark JSON |
 | FrameTimeline missed frames | 记录类型与数量 | 目标 jank 类型显著下降 | Perfetto |
 | 正确性 | 截图基线 | 关键帧无视觉差异 | 截图/像素容差测试 |
 

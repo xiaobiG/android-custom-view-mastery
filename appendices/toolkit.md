@@ -242,6 +242,9 @@ class DragTouchState(viewConfiguration: ViewConfiguration) {
     fun onPointerUp(event: MotionEvent) {
         val upIndex = event.actionIndex
         if (event.getPointerId(upIndex) != activePointerId) return
+        // 下面 0/1 二选一隐含“最多两指”的假设：活动指针抬起时换到另一根。
+        // 三指及以上时仅凭 upIndex 无法覆盖任意一根抬起的情形，
+        // 应按 pointerId 迁移：遍历剩余指针选一根作为替换（并重置 last 坐标）。
         val replacement = if (upIndex == 0) 1 else 0
         if (replacement < event.pointerCount) {
             activePointerId = event.getPointerId(replacement)
@@ -314,6 +317,7 @@ override fun performClick(): Boolean {
 - 必须处理 `ACTION_CANCEL`；它不是点击，也不应提交拖动结果。
 - `requestDisallowInterceptTouchEvent(true)` 不是永久锁，应在 UP/CANCEL 释放；复杂嵌套滚动优先实现 AndroidX Nested Scrolling 协议。
 - pointer **index** 会变化，pointer **ID** 才用于跨事件追踪。
+- `onPointerUp` 的替换指针选择按 0/1 二选一，面向两指场景；支持三指及以上时改为按 `pointerId` 迁移（选择仍在事件中、且不是刚抬起的那根），否则可能选到无效指针。
 - 触摸状态机不负责速度。需要 fling 时复用一个 `VelocityTracker`，每个事件调用 `addMovement()`，UP 时 `computeCurrentVelocity(1000, max)`，结束后 `recycle()`。
 
 ## 5. 动画与生命周期

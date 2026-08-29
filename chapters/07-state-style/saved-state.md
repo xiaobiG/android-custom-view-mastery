@@ -29,7 +29,7 @@ logical UI state -----------------> View.BaseSavedState
 以下示例不依赖 `@Parcelize`，清楚展示 Parcelable 契约：
 
 ```kotlin
-class StepperView @JvmOverloads constructor(
+class StepCounterView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
 ) : View(context, attrs) {
@@ -99,13 +99,28 @@ class StepperView @JvmOverloads constructor(
 关键点：
 
 1. `onSaveInstanceState()` 总是先取得 `superState`。
-2. 写入和读取顺序必须完全一致；`ClassLoaderCreator` 要把 loader 传给父状态读取。
+2. 写入和读取顺序必须完全一致；`ClassLoaderCreator` 要把 loader 传给父状态读取。之所以需要
+   带 loader 的 `createFromParcel(source, loader)`：进程被系统回收重建时，类可能由非默认
+   `ClassLoader` 加载（如动态特性模块、Instant Run 类路径），父类内部字段的类类型解析需要
+   正确的 loader；只实现普通 `Creator` 时框架退化为默认 loader，复杂场景可能解析失败。
 3. 非自家状态类型要原样交给 `super`。
 4. 恢复时先恢复父类，再提交自定义字段。
 5. 不在恢复时播放入场动画或触发业务监听器，除非 API 明确要求。
 
 > **注意**
 > View 必须有稳定且非 `NO_ID` 的 ID，父层级才可按 ID 保存和匹配状态。XML 中使用 `android:id`；动态 View 使用 `View.generateViewId()` 并确保重建时结构/ID 可对应。
+
+### 2.1 恢复时机与 setSaveEnabled
+
+`onSaveInstanceState()` 在 Activity 的保存阶段（通常在 `onStop` 附近）随层级自上而下调用；
+恢复则在 `onRestoreInstanceState()` 中按 View ID 分发，先于 Activity 的 `onStart`。因此恢复
+回调里不应假设布局已完成测量——像素几何请推迟到 `onSizeChanged` 或绘制阶段再计算。
+
+`setSaveEnabled(false)`（XML：`android:saveEnabled`）可关闭某个 View 的状态保存：它的
+`onSaveInstanceState()` 会直接返回 `null`，父层级保存时也会跳过该 View。适用场景是内容完全
+由父级或 ViewModel 驱动的叶子控件（如纯展示的图标），避免无意义地保存与分发；但要小心：
+动态生成、依赖 ID 匹配的 View 若被关闭保存，重建后可能丢失交互值。默认 `saveEnabled=true`，
+不要为“省一点 Bundle”而全局关闭。
 
 ## 3. Kotlin Parcelize 版本
 

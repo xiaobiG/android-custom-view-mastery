@@ -137,11 +137,32 @@ class MeasureConstraintTest(
         when (mode) {
             View.MeasureSpec.EXACTLY -> assertEquals(limit, view.measuredWidth)
             View.MeasureSpec.AT_MOST -> assertTrue(view.measuredWidth <= limit)
-            View.MeasureSpec.UNSPECIFIED -> assertTrue(view.measuredWidth >= 0)
+            View.MeasureSpec.UNSPECIFIED -> {
+                // 空断言修复：>= 0 恒真，没有验证任何契约。
+                // UNSPECIFIED 下 specSize 不应约束结果，两次不同 limit 应得到相同尺寸。
+                val probe = GaugeView(ApplicationProvider.getApplicationContext())
+                probe.measure(
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+                )
+                val atZero = probe.measuredWidth
+                probe.measure(
+                    View.MeasureSpec.makeMeasureSpec(500, View.MeasureSpec.UNSPECIFIED),
+                    View.MeasureSpec.makeMeasureSpec(500, View.MeasureSpec.UNSPECIFIED),
+                )
+                assertEquals(atZero, probe.measuredWidth)
+            }
         }
     }
 }
 ```
+
+### Robolectric 原生图形模式
+
+Robolectric 4.10 起支持 `@GraphicsMode(GraphicsMode.Mode.NATIVE)`：用原生 Skia 栅格化
+替代默认的 LEGACY 软件渲染。需要真实绘制结果（如 Canvas 像素断言、复杂 Path/着色器路径）
+时使用它；纯测量与状态测试保持默认即可——原生模式更慢、对图形栈更敏感。`sdk` 与
+`graphicsMode` 的组合在升级 Robolectric 后应重跑验证。
 
 ## 4. 仪器测试验证平台边界
 

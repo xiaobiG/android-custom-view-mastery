@@ -107,6 +107,8 @@ class CircularProgressView @JvmOverloads constructor(
     @ColorInt private var trackColor = Color.LTGRAY
     @ColorInt private var progressColor = Color.rgb(33, 150, 243)
     @ColorInt private var textColor = Color.DKGRAY
+    private var lastAnnouncedPercent = -1
+    private var lastAnnounceTime = 0L
 
     init {
         context.withStyledAttributes(
@@ -174,6 +176,16 @@ class CircularProgressView @JvmOverloads constructor(
         progressValue = newValue
         updateAccessibility()
         invalidate()
+        maybeAnnounceProgress()
+    }
+
+    /** 节流：只有整百分比变化或距上次发送超过阈值时才播报内容变化事件。 */
+    private fun maybeAnnounceProgress() {
+        val percent = (progressValue * 100f / maxValue).roundToInt()
+        val now = android.os.SystemClock.uptimeMillis()
+        if (percent == lastAnnouncedPercent && now - lastAnnounceTime < 500L) return
+        lastAnnouncedPercent = percent
+        lastAnnounceTime = now
         sendAccessibilityEvent(AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED)
     }
 
@@ -354,7 +366,7 @@ fun CircularProgress(
 
 ## 无障碍
 
-> **无障碍提示**：颜色不是唯一信息载体；保留文字或语义百分比。若进度高频更新，不要每帧发送 announcement，否则会淹没 TalkBack。
+> **无障碍提示**：颜色不是唯一信息载体；保留文字或语义百分比。若进度高频更新，不要每帧发送 announcement，否则会淹没 TalkBack。示例在 `setProgress()` 中对 `TYPE_WINDOW_CONTENT_CHANGED` 做了节流：只有进度四舍五入到整百分比发生变化、或距上次发送超过 500ms 时才播报，动画等高频更新因此只发出少量事件。
 
 对于更严格的范围语义，可覆写 `onInitializeAccessibilityNodeInfo()`，设置 `AccessibilityNodeInfo.RangeInfo`。只读进度不应伪装成可点击按钮。
 

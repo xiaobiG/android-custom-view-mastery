@@ -29,7 +29,7 @@ import android.view.KeyEvent
 import android.view.View
 import androidx.core.view.ViewCompat
 
-class StepperView @JvmOverloads constructor(
+class StepSelectorView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
 ) : View(context, attrs) {
@@ -130,7 +130,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class StepperKeyboardTest {
+class StepSelectorKeyboardTest {
     companion object {
         @JvmStatic @BeforeClass
         fun a11yGate() {
@@ -145,14 +145,14 @@ class StepperKeyboardTest {
             onView(withId(R.id.stepper)).check(matches(hasFocus()))
             onView(withId(R.id.stepper)).perform(pressKey(KeyEvent.KEYCODE_ENTER))
             scenario.onActivity { activity ->
-                assertEquals(5, activity.findViewById<StepperView>(R.id.stepper).value)
+                assertEquals(5, activity.findViewById<StepSelectorView>(R.id.stepper).value)
             }
         }
     }
 }
 ```
 
-实际项目更应断言确认文本等用户可见结果；组件级测试也可断言公开业务状态，但不要只断言“收到按键”。
+实际项目更应断言确认文本等用户可见结果；组件级测试也可断言公开业务状态，但不要只断言"收到按键"。示例中的 `StepperActivity` 与 `R.id.stepper` 是宿主工程里既有的资源命名（控件类已更名为 `StepSelectorView`）；你自己的工程沿用既有命名即可，无需强行统一。
 
 Robolectric 可快速验证 key mapping：
 
@@ -165,10 +165,10 @@ import org.robolectric.RobolectricTestRunner
 import org.junit.runner.RunWith
 
 @RunWith(RobolectricTestRunner::class)
-class StepperViewLocalTest {
+class StepSelectorViewLocalTest {
     @Test
     fun rightArrow_inLtr_incrementsValue() {
-        val view = StepperView(ApplicationProvider.getApplicationContext())
+        val view = StepSelectorView(ApplicationProvider.getApplicationContext())
         view.layoutDirection = View.LAYOUT_DIRECTION_LTR
         view.dispatchKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_RIGHT))
         assertEquals(1, view.value)

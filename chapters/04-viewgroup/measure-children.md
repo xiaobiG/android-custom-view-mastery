@@ -65,6 +65,58 @@ available = max(0, parentSize - padding)
 
 `*` 实际 size 还会受平台兼容行为影响；算法应依赖 mode 语义，不要依赖 `UNSPECIFIED` 中的 size。
 
+### 2.1 源码级推导：分支顺序决定一切
+
+`getChildMeasureSpec()` 不是“查表”，而是按固定优先级分支：先处理固定尺寸，再按父模式
+处理 `MATCH_PARENT`/`WRAP_CONTENT`。逻辑可等价写成：
+
+```text
+getChildMeasureSpec(parentSpec, padding, childDimension):
+
+    available = max(0, parentSize - padding)
+
+    // 第一级分支：固定尺寸优先于父模式
+    if (childDimension >= 0)                    // 固定尺寸（px）
+        return makeMeasureSpec(childDimension, EXACTLY)
+
+    // 第二级分支：按父模式处理 -1 / -2 两个标记值
+    when (parentSpecMode) {
+        EXACTLY:
+            MATCH_PARENT(-1) -> makeMeasureSpec(available, EXACTLY)
+            WRAP_CONTENT(-2) -> makeMeasureSpec(available, AT_MOST)
+        AT_MOST:
+            MATCH_PARENT(-1) -> makeMeasureSpec(available, AT_MOST)
+            WRAP_CONTENT(-2) -> makeMeasureSpec(available, AT_MOST)
+        UNSPECIFIED:
+            MATCH_PARENT(-1) -> makeMeasureSpec(sizeOrZero, UNSPECIFIED)
+            WRAP_CONTENT(-2) -> makeMeasureSpec(sizeOrZero, UNSPECIFIED)
+    }
+```
+
+对照结果表，几个关键推导：
+
+| 父规格 × 子声明 | 结果 | 推导 |
+|---|---|---|
+| 任意 × 固定尺寸 `n` | `EXACTLY(n)` | 第一级分支，父模式不参与 |
+| `EXACTLY(P)` × `WRAP_CONTENT` | `AT_MOST(available)` | 子可自定，但不能超过父已定空间 |
+| `AT_MOST(P)` × `MATCH_PARENT` | `AT_MOST(available)` | 父自己都未定，子“跟父一样大”只能取父上限 |
+| `UNSPECIFIED` × `WRAP_CONTENT` | `UNSPECIFIED(sizeOrZero)` | 父无上限，子必须按自身内容自行定尺寸 |
+| `UNSPECIFIED` × `MATCH_PARENT` | `UNSPECIFIED(sizeOrZero)` | “跟父一样大”无意义，父本身没有大小 |
+| 任意 × 非法负数（非 -1/-2） | `UNSPECIFIED(0)` | 不匹配任何分支，退化为空规格 |
+
+两个由分支顺序推出的反直觉点：
+
+- **固定尺寸是“契约”而非“建议”**：即使 `n` 大于父可用空间，`getChildMeasureSpec()` 也原样
+  返回 `EXACTLY(n)`。若子 View 的 `onMeasure()` 直接采用该尺寸，可能出现尺寸溢出；容器应在
+  汇总阶段用 `resolveSizeAndState()` 把结果收束回自己的约束。
+- **`UNSPECIFIED` 下的 size 不可依赖**：`sizeOrZero` 在多数系统上取 `available`，但平台保留
+  `View.setUseZeroUnspecifiedMeasureSpec`（API 23）开关，开启后取 0
+  （用于 `ScrollView` 等兼容场景）。因此算法必须只看 mode，不要读 `UNSPECIFIED` 的 size。
+
+> **注意**：`MATCH_PARENT` 与 `WRAP_CONTENT` 在 `LayoutParams` 中分别是 -1 与 -2。
+> 其他负数既不等于固定尺寸、也不等于任一标记，会落入 `when` 之外退化为 `UNSPECIFIED(0)`；
+> 业务代码应在传入前把这类值归一化为合法尺寸。
+
 这里有两个容易误解的点：
 
 - 子 View 声明固定尺寸时，父容器通常会生成 `EXACTLY(n)`；固定尺寸表达的是子 View 的布局契约。

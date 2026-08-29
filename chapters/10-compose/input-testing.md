@@ -127,8 +127,10 @@ AndroidView(
 ```
 
 > **版本与方向边界**：本节依赖 `androidx.compose.ui:ui` 的 `AndroidView` nested-scroll
-> interop，以及 AndroidX Core 的 `NestedScrollingChild` 协议；具体版本由项目 BOM/version
-> catalog 锁定并用滚动集成测试验证。`rememberNestedScrollInteropConnection()` 的公开契约是
+> interop，以及 AndroidX Core 的 `NestedScrollingChild` 协议。不同 Compose 版本对
+> `AndroidView` 的滚动桥接行为（尤其是 fling 传递）存在差异，**必须**由项目 BOM/version
+> catalog 锁定确切版本，并在升级 Compose 后重跑滚动集成测试验证，不能假设旧版本行为不变。
+> `rememberNestedScrollInteropConnection()` 的公开契约是
 > “Compose 子级向实现 `NestedScrollingParent3` 的 View 父级派发”，不能拿来替代本例的
 > “Android View 子级向 Compose 父级派发”。内部 View 仍必须启用并正确实现 nested scrolling
 > child API；自定义 View 若只在 `onTouchEvent` 修改坐标，外层不会凭空收到 pre-scroll 或 fling。
