@@ -89,6 +89,6 @@ git diff --check
 - 范围：三区全面审查（核心机制 21 章 / 进阶 23 章 / 案例+附录+结构）→ M0 核验与一致性修复 → M1 新增内容 → M2 薄弱加强 → M3 工具链。
 - 规模：58 → 62 个导航页；新增 4 章（Baseline Profile、ComposeView 反向互操作、Camera 三维变换、标准手势识别器）。
 - 一致性修复：12 处章节/附录问题 + 4 处案例问题（含 diagram-editor 状态保存、zoomable-chart 生命周期清理）。
-- 工具链：新增 `link_check.py` 外部链接校验；`validate_book.py` 增加孤儿文件检测、章节数动态化、绝对路由内链支持；双首页合一（README 即首页）；移除未使用的 `preview` 脚本。
-- 全量验证：`validate_book.py` 0 error 0 warning；`link_check.py` 0 error；VitePress 构建成功（67 个 HTML）。
-- 发布流程（audit、隐私扫描、2.0.0 版本与 `v2.0.0` tag）尚未执行，由版本发布时按 [ROADMAP.md](ROADMAP.md) 完成。
+- 工具链：新增 `link_check.py` 外部链接校验；`validate_book.py` 增加孤儿文件检测、章节数动态化、绝对路由内链支持；双首页职责分离（`index.md` 书首页 / `README.md` 仓库文档，消除前言侧栏不可达）；移除未使用的 `preview` 脚本。
+- 全量验证：`validate_book.py` 0 error 0 warning；`link_check.py` 0 error；VitePress 构建成功（68 个 HTML，含恢复的 `index.html`）。
+- 发布（2026-08-29 22:28 起）：隐私扫描通过（工作树/历史/封面均无敏感信息）；`2.0.0` 版本、commit `ac97304`、tag `v2.0.0` 与后续首页修复 `97653ce` 均已 push；GitHub Pages 部署由 Actions 自动完成。发布中发现 VitePress 将根 `README.md` 渲染为 `README.html`、删除 index.md 导致站点根 404，已恢复 `index.md` 修复。

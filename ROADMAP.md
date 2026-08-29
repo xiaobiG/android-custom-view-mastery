@@ -60,8 +60,11 @@ getChildMeasureSpec 源码推导、setLayerType 三种绘制目标、OverScrolle
   跨域重定向提示、allowlist 跳过），接入 `npm run check`。
 - `scripts/validate_book.py`：新增孤儿文件检测（content 目录存在但 SUMMARY 未收录即报错）；
   章节总数改为按 SUMMARY 自动计数（删除硬编码 58）；支持 VitePress 绝对路由内链校验。
-- 双首页合一：删除 `index.md`，简介与「开始阅读」并入 `README.md`（README 即 `/`，
-  前言内容恢复可达）。
+- 双首页职责分离：根 `index.md` 承载书首页（简介与「开始阅读」），`README.md` 保留为
+  完整仓库文档；SUMMARY 中「前言」链接 `README.md` 经 `routeFromMarkdown` 映射到 `/`
+  （即 index.html），消除 v1 的"前言侧栏不可达"问题。发布时发现 VitePress 将根
+  `README.md` 渲染为 `README.html`（而非 index.html），删除 index.md 会使站点根 404，
+  已恢复 index.md 修复（commit `97653ce`）。
 - `package.json`：删除无人引用的 `preview` 脚本；`check` 串联 validate + link_check。
 
 ## 质量门槛与发布流程（发布前执行）
