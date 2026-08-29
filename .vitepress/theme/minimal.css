@@ -75,14 +75,14 @@
 }
 
 .VPDoc div[class*='language-'] {
-  border: 1px solid #222;
+  border: 1px solid #ddd;
   border-radius: 0;
-  background: #111;
+  background: #f6f6f6;
 }
 
 .VPDoc div[class*='language-'] code,
 .VPDoc div[class*='language-'] pre {
-  color: #f5f5f5;
+  color: #111;
 }
 
 .VPDoc table {
